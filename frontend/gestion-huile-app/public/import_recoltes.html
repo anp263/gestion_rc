@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Import Récoltes</title>
+    <link href="https://fonts.cdnfonts.com/css/gilroy" rel="stylesheet">
+    <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            font-family: 'Gilroy', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 40px auto;
+            max-width: 900px;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #ED1C24;
+            margin-bottom: 0.3em;
+        }
+
+        .subtitle {
+            color: #555;
+            font-size: 1.1rem;
+            margin-bottom: 1.5em;
+            border-left: 4px solid #ED1C24;
+            padding-left: 1rem;
+        }
+
+        .log {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 450px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-size: 0.95rem;
+        }
+
+        .success {
+            color: #2e7d32;
+        }
+
+        .error {
+            color: #c62828;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #ED1C24;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🌴 Importation des récoltes (données réelles)</h1>
+    <div class="subtitle">
+        Lit le fichier <code>/data/Récolte.csv</code>.<br>
+        Les colonnes sont lues <strong>par position</strong>.<br>
+        Base cible : <strong>GestionHuileDB_v4</strong><br>
+        Les tables <code>semaines_recolte</code> et <code>recolte_journaliere</code> seront vidées avant l'import.
+    </div>
+    <button id="btnStart">🚀 Importer les récoltes</button>
+    <div id="log" class="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.textContent = msg;
+            div.className = type;
+            log.appendChild(div);
+        }
+
+        function excelSerialToLocalDate(serial) {
+            const utcDays = Math.floor(serial - 25569);
+            const utcValue = utcDays * 86400000;
+            const date = new Date(utcValue + new Date().getTimezoneOffset() * 60000);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        document.getElementById('btnStart').addEventListener('click', async () => {
+            addLog('⏳ Démarrage...');
+            try {
+                // ✅ Base cible : GestionHuileDB_v4
+                const db = new Dexie('GestionHuileDB_v4');
+                await db.open();
+                addLog('🗄️ Base ouverte avec succès.');
+
+                const resp = await fetch('/data/Récolte.csv');
+                if (!resp.ok) throw new Error(`Fichier introuvable (HTTP ${resp.status})`);
+                const csvText = await resp.text();
+                addLog('📄 CSV chargé.');
+
+                const result = Papa.parse(csvText, { delimiter: ",", header: false, skipEmptyLines: true, encoding: "UTF-8" });
+                if (result.errors.length) {
+                    result.errors.forEach(e => addLog(`⚠️ Erreur parsing : ${e.message}`, 'error'));
+                }
+
+                const rows = result.data;
+                addLog(`🔢 ${rows.length} lignes brutes.`);
+
+                const dataRows = rows.slice(1).filter(row => row.length >= 3);
+                addLog(`📊 ${dataRows.length} lignes de données.`);
+
+                if (dataRows.length === 0) {
+                    addLog('❌ Aucune ligne valide.', 'error');
+                    return;
+                }
+
+                // Aperçu rapide
+                for (let i = 0; i < Math.min(3, dataRows.length); i++) {
+                    const row = dataRows[i];
+                    const serial = parseFloat(row[0]?.replace(',', '.'));
+                    const nbTravailleurs = parseFloat(row[1]?.replace(',', '.')) || 0;
+                    const poids = parseFloat(row[2]?.replace(',', '.')) || 0;
+                    const date = isNaN(serial) ? '⚠️' : excelSerialToLocalDate(serial);
+                    addLog(`   ${date} | travailleurs: ${nbTravailleurs} | poids: ${poids} kg`);
+                }
+
+                // Vider les tables récolte
+                await db.table('semaines_recolte').clear();
+                await db.table('recolte_journaliere').clear();
+                addLog('🗑️ Tables vidées.');
+
+                let imported = 0;
+                for (const row of dataRows) {
+                    const serial = parseFloat(row[0]?.replace(',', '.'));
+                    if (isNaN(serial)) continue;
+                    const dateDebut = excelSerialToLocalDate(serial);
+                    const dateFin = new Date(new Date(dateDebut).getTime() + 6 * 86400000).toISOString().slice(0, 10);
+                    const poids = parseFloat(row[2]?.replace(',', '.')) || 0;
+                    const nbTravailleurs = parseFloat(row[1]?.replace(',', '.')) || 0;
+
+                    const semaineId = crypto.randomUUID();
+                    await db.table('semaines_recolte').add({
+                        id: semaineId,
+                        dateDebut,
+                        dateFin,
+                        poidsRegimesTotal: poids,
+                        nbRegimesTotal: 0,
+                        nbPalmiersEntretenusTotal: 0,
+                        nbPalmiersVisitesTotal: 0,
+                        poidsMoyenRegime: 0,
+                        poidsRegimeParPalmier: 0
+                    });
+
+                    if (nbTravailleurs > 0) {
+                        await db.table('recolte_journaliere').add({
+                            id: crypto.randomUUID(),
+                            semaineId,
+                            date: dateDebut,
+                            parcelle: 'Import CSV',
+                            nbTravailleurs: nbTravailleurs,
+                            nbPalmiersRecoltes: 0,
+                            nbPalmiersEntretenus: 0,
+                            nbRegimes: 0
+                        });
+                    }
+                    imported++;
+                }
+
+                const count = await db.table('semaines_recolte').count();
+                addLog(`✅ Import terminé – ${imported} semaines traitées, ${count} présentes dans la base.`, 'success');
+                addLog('💡 Rafraîchissez l’application (F5) pour voir les données.');
+            } catch (err) {
+                addLog(`❌ Erreur : ${err.message}`, 'error');
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Import Production journalière</title>
+    <link href="https://fonts.cdnfonts.com/css/gilroy" rel="stylesheet">
+    <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            font-family: 'Gilroy', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 40px auto;
+            max-width: 900px;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #ED1C24;
+            margin-bottom: 0.3em;
+        }
+
+        .subtitle {
+            color: #555;
+            font-size: 1.1rem;
+            margin-bottom: 1.5em;
+            border-left: 4px solid #ED1C24;
+            padding-left: 1rem;
+        }
+
+        .log {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 450px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-size: 0.95rem;
+        }
+
+        .success {
+            color: #2e7d32;
+        }
+
+        .error {
+            color: #c62828;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #ED1C24;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🏭 Import Production journalière</h1>
+    <div class="subtitle">
+        Lit <code>/data/Production par jour.csv</code>.<br>
+        <strong>Agrège par date</strong> : additionne les fruits, travailleurs, gasoil, essence.<br>
+        Crée automatiquement les semaines de production et de récolte manquantes.<br>
+        Les tables <code>production_consommation</code> et <code>production_consommation_carburant</code> sont vidées
+        avant l'import.
+    </div>
+    <button id="btnStart">🚀 Importer</button>
+    <div id="log" class="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.textContent = msg;
+            div.className = type;
+            log.appendChild(div);
+        }
+
+        function excelSerialToLocalDate(serial) {
+            const utcDays = Math.floor(serial - 25569);
+            const utcValue = utcDays * 86400000;
+            const date = new Date(utcValue + new Date().getTimezoneOffset() * 60000);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        document.getElementById('btnStart').addEventListener('click', async () => {
+            addLog('⏳ Démarrage...');
+            try {
+                const db = new Dexie('GestionHuileDB_v4');
+                await db.open();
+                addLog('🗄️ Base ouverte.');
+
+                const resp = await fetch('/data/Production par jour.csv');
+                if (!resp.ok) throw new Error(`Fichier introuvable (HTTP ${resp.status})`);
+                const csvText = await resp.text();
+                addLog('📄 CSV chargé.');
+
+                const result = Papa.parse(csvText, { delimiter: ",", header: false, skipEmptyLines: true, encoding: "UTF-8" });
+                if (result.errors.length) {
+                    result.errors.forEach(e => addLog(`⚠️ Erreur parsing : ${e.message}`, 'error'));
+                }
+
+                const rows = result.data;
+                addLog(`🔢 ${rows.length} lignes brutes.`);
+
+                const dataRows = rows.slice(1).filter(row => row.length >= 2);
+                addLog(`📊 ${dataRows.length} lignes de données après nettoyage.`);
+
+                if (dataRows.length === 0) {
+                    addLog('❌ Aucune ligne valide.', 'error');
+                    return;
+                }
+
+                // Agrégation par date
+                const dailyMap = new Map();
+                for (const row of dataRows) {
+                    const serial = parseFloat(row[0]?.replace(',', '.'));
+                    if (isNaN(serial)) continue;
+                    const date = excelSerialToLocalDate(serial);
+                    const fruits = parseFloat(row[1]?.replace(',', '.')) || 0;
+                    const semaineSerial = parseFloat(row[2]?.replace(',', '.'));
+                    const semaineDate = isNaN(semaineSerial) ? null : excelSerialToLocalDate(semaineSerial);
+                    const travailleurs = parseFloat(row[3]?.replace(',', '.')) || 0;
+                    const gasoil = parseFloat(row[4]?.replace(',', '.')) || 0;
+                    const essence = parseFloat(row[5]?.replace(',', '.')) || 0;
+
+                    if (!dailyMap.has(date)) {
+                        dailyMap.set(date, { fruits: 0, travailleurs: 0, gasoil: 0, essence: 0, semaineDates: new Set() });
+                    }
+                    const day = dailyMap.get(date);
+                    day.fruits += fruits;
+                    day.travailleurs += travailleurs;
+                    day.gasoil += gasoil;
+                    day.essence += essence;
+                    if (semaineDate) day.semaineDates.add(semaineDate);
+                }
+
+                addLog(`📅 ${dailyMap.size} jours uniques après agrégation.`);
+
+                // Vider les tables production journalière
+                await db.table('production_consommation').clear();
+                await db.table('production_consommation_carburant').clear();
+                addLog('🗑️ Tables production_consommation et carburant vidées.');
+
+                let imported = 0;
+                for (const [date, day] of dailyMap) {
+                    // Déterminer le lundi de la semaine pour la semaine de production
+                    const jsDate = new Date(date);
+                    const dayOfWeek = jsDate.getDay();
+                    const diffToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+                    const lundi = new Date(jsDate);
+                    lundi.setDate(jsDate.getDate() - diffToMonday);
+                    const dateDebutSemaine = lundi.toISOString().slice(0, 10);
+                    const dateFinSemaine = new Date(lundi.getTime() + 6 * 86400000).toISOString().slice(0, 10);
+
+                    // Créer ou retrouver la semaine de production
+                    let semaineProd = await db.semaines_production.where('dateDebut').equals(dateDebutSemaine).first();
+                    if (!semaineProd) {
+                        const newId = crypto.randomUUID();
+                        await db.semaines_production.add({
+                            id: newId,
+                            dateDebut: dateDebutSemaine,
+                            dateFin: dateFinSemaine,
+                            consoGasoilTotal: 0,
+                            consoEssenceTotal: 0
+                        });
+                        semaineProd = { id: newId, dateDebut: dateDebutSemaine, dateFin: dateFinSemaine };
+                    }
+
+                    // Gérer la semaine de récolte (si elle existe dans le CSV)
+                    let semaineRecolteId = null;
+                    if (day.semaineDates.size > 0) {
+                        const semaineRecolteDate = day.semaineDates.values().next().value;
+                        let semaineRecolte = await db.semaines_recolte.where('dateDebut').equals(semaineRecolteDate).first();
+                        if (!semaineRecolte) {
+                            const newId = crypto.randomUUID();
+                            await db.semaines_recolte.add({
+                                id: newId,
+                                dateDebut: semaineRecolteDate,
+                                dateFin: new Date(new Date(semaineRecolteDate).getTime() + 6 * 86400000).toISOString().slice(0, 10),
+                                poidsRegimesTotal: 0,
+                                nbRegimesTotal: 0,
+                                nbPalmiersEntretenusTotal: 0,
+                                nbPalmiersVisitesTotal: 0,
+                                poidsMoyenRegime: 0,
+                                poidsRegimeParPalmier: 0
+                            });
+                            semaineRecolte = { id: newId };
+                        }
+                        semaineRecolteId = semaineRecolte.id;
+                    }
+
+                    // Ajouter la consommation journalière (avec consoGasoil/consoEssence à 0 car on utilise production_consommation_carburant)
+                    await db.table('production_consommation').add({
+                        id: crypto.randomUUID(),
+                        semaineProdId: semaineProd.id,
+                        date: date,
+                        fruitsTransformesKg: day.fruits,
+                        nbTravailleurs: day.travailleurs,
+                        consoGasoil: 0,   // l'application a migré le carburant dans une table séparée, on n'utilise plus ces champs
+                        consoEssence: 0,
+                        semaineRecolteId: semaineRecolteId
+                    });
+
+                    // Insérer les consommations de carburant dans la table dédiée (si > 0)
+                    if (day.gasoil > 0) {
+                        const carburantGasoil = await db.carburant_types.where('nom').equals('Gasoil').first();
+                        if (carburantGasoil) {
+                            await db.table('production_consommation_carburant').add({
+                                id: crypto.randomUUID(),
+                                semaineProdId: semaineProd.id,
+                                date: date,
+                                carburant_type_id: carburantGasoil.id,
+                                quantite: day.gasoil,
+                                utilisation_id: null   // utilisation inconnue dans le CSV
+                            });
+                        }
+                    }
+                    if (day.essence > 0) {
+                        const carburantEssence = await db.carburant_types.where('nom').equals('Essence').first();
+                        if (carburantEssence) {
+                            await db.table('production_consommation_carburant').add({
+                                id: crypto.randomUUID(),
+                                semaineProdId: semaineProd.id,
+                                date: date,
+                                carburant_type_id: carburantEssence.id,
+                                quantite: day.essence,
+                                utilisation_id: null
+                            });
+                        }
+                    }
+
+                    imported++;
+                }
+
+                const countConsommation = await db.table('production_consommation').count();
+                addLog(`✅ Import terminé – ${imported} jours importés, ${countConsommation} enregistrements dans production_consommation.`, 'success');
+                addLog('💡 Rafraîchissez l’application (F5) pour voir les données.');
+            } catch (err) {
+                addLog(`❌ Erreur : ${err.message}`, 'error');
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,35 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Build
+dist/
+build/
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Backend Python
+__pycache__/
+*.pyc
+venv/
+env/
+*.log
+
+# Fichiers temporaires
+*.odt
+data/
+demarrer.sh
+redemarrer.sh
+
+# Fichiers de base de données (si présents)
+*.db
+*.sqlite3

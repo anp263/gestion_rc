@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Import Lots hebdomadaires</title>
+    <link href="https://fonts.cdnfonts.com/css/gilroy" rel="stylesheet">
+    <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            font-family: 'Gilroy', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            margin: 40px auto;
+            max-width: 900px;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #ED1C24;
+            margin-bottom: 0.3em;
+        }
+
+        .subtitle {
+            color: #555;
+            font-size: 1.1rem;
+            margin-bottom: 1.5em;
+            border-left: 4px solid #ED1C24;
+            padding-left: 1rem;
+        }
+
+        .log {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 450px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-size: 0.95rem;
+        }
+
+        .success {
+            color: #2e7d32;
+        }
+
+        .error {
+            color: #c62828;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #ED1C24;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧴 Import des lots hebdomadaires</h1>
+    <div class="subtitle">
+        Lit <code>/data/Production par semaine.csv</code>.<br>
+        Crée les semaines de production et les lots avec leurs emballages.<br>
+        Les types de contenants <strong>Bidon 1 l, 5 l, 25 l</strong> doivent exister.<br>
+        Cliquez d'abord sur "Créer les contenants" si nécessaire.
+    </div>
+    <button id="btnCreateContainers">📦 Créer les contenants 1L/5L/25L</button>
+    <button id="btnStart">🚀 Importer les lots</button>
+    <div id="log" class="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.textContent = msg;
+            div.className = type;
+            log.appendChild(div);
+        }
+
+        function excelSerialToLocalDate(serial) {
+            const utcDays = Math.floor(serial - 25569);
+            const utcValue = utcDays * 86400000;
+            const date = new Date(utcValue + new Date().getTimezoneOffset() * 60000);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        const db = new Dexie('GestionHuileDB_v4');
+
+        // Créer les contenants s'ils n'existent pas
+        document.getElementById('btnCreateContainers').addEventListener('click', async () => {
+            await db.open();
+            const types = [
+                { id: crypto.randomUUID(), nom: 'Bidon 1 l', capaciteL: 1, code: 'B1' },
+                { id: crypto.randomUUID(), nom: 'Bidon 5 l', capaciteL: 5, code: 'B5' },
+                { id: crypto.randomUUID(), nom: 'Bidon 25 l', capaciteL: 25, code: 'B25' }
+            ];
+            for (let t of types) {
+                const exist = await db.typesContenants.where('nom').equals(t.nom).first();
+                if (!exist) await db.typesContenants.add(t);
+            }
+            addLog('✅ Contenants créés/vérifiés.');
+        });
+
+        // Importer les lots
+        document.getElementById('btnStart').addEventListener('click', async () => {
+            addLog('⏳ Démarrage...');
+            try {
+                await db.open();
+                addLog('🗄️ Base ouverte.');
+
+                const resp = await fetch('/data/Production par semaine.csv');
+                if (!resp.ok) throw new Error(`Fichier introuvable (HTTP ${resp.status})`);
+                const csvText = await resp.text();
+                addLog('📄 CSV chargé.');
+
+                const result = Papa.parse(csvText, { delimiter: ",", header: false, skipEmptyLines: true, encoding: "UTF-8" });
+                if (result.errors.length) {
+                    result.errors.forEach(e => addLog(`⚠️ Erreur parsing : ${e.message}`, 'error'));
+                }
+
+                const rows = result.data;
+                addLog(`🔢 ${rows.length} lignes brutes.`);
+
+                const dataRows = rows.slice(1).filter(row => row.length >= 4);
+                addLog(`📊 ${dataRows.length} lignes de données.`);
+
+                if (dataRows.length === 0) {
+                    addLog('❌ Aucune ligne valide.', 'error');
+                    return;
+                }
+
+                // Récupérer les IDs des contenants
+                const b1 = await db.typesContenants.where('nom').equals('Bidon 1 l').first();
+                const b5 = await db.typesContenants.where('nom').equals('Bidon 5 l').first();
+                const b25 = await db.typesContenants.where('nom').equals('Bidon 25 l').first();
+                if (!b1 || !b5 || !b25) {
+                    addLog('❌ Les contenants 1L, 5L, 25L sont absents. Créez-les avec le bouton ci-dessus.', 'error');
+                    return;
+                }
+
+                // Vider les tables lots et emballages (optionnel : ne pas vider semaines_production)
+                await db.table('production_lot').clear();
+                await db.table('production_lot_emballages').clear();
+                addLog('🗑️ Tables production_lot et production_lot_emballages vidées.');
+
+                let imported = 0;
+                for (const row of dataRows) {
+                    const serial = parseFloat(row[0]?.replace(',', '.'));
+                    if (isNaN(serial)) continue;
+                    const dateDebut = excelSerialToLocalDate(serial);
+                    const dateFin = new Date(new Date(dateDebut).getTime() + 6 * 86400000).toISOString().slice(0, 10);
+
+                    // Trouver ou créer la semaine de production
+                    let semaineProd = await db.semaines_production.where('dateDebut').equals(dateDebut).first();
+                    if (!semaineProd) {
+                        const newId = crypto.randomUUID();
+                        await db.semaines_production.add({
+                            id: newId,
+                            dateDebut,
+                            dateFin,
+                            consoGasoilTotal: 0,
+                            consoEssenceTotal: 0
+                        });
+                        semaineProd = { id: newId, dateDebut, dateFin };
+                    }
+
+                    // Lire les quantités
+                    const q1 = parseInt(row[1]?.replace(',', '.')) || 0;
+                    const q5 = parseInt(row[2]?.replace(',', '.')) || 0;
+                    const q25 = parseInt(row[3]?.replace(',', '.')) || 0;
+
+                    // Si aucune quantité, on passe
+                    if (q1 + q5 + q25 === 0) continue;
+
+                    // Calcul du volume d'huile
+                    const volumeHuile = q1 * 1 + q5 * 5 + q25 * 25;
+
+                    // Créer le lot
+                    const lotId = crypto.randomUUID();
+                    await db.table('production_lot').add({
+                        id: lotId,
+                        semaineProdId: semaineProd.id,
+                        numeroLot: dateDebut.replace(/-/g, '').slice(2) + '-1',  // ex: 250127-1
+                        date: dateDebut,
+                        fruitsTransformesKg: 0,  // sera éventuellement complété plus tard
+                        volumeHuileL: volumeHuile,
+                        tauxAcidite: parseFloat(row[7]?.replace(',', '.')) || null,
+                        noteGout: parseFloat(row[6]?.replace(',', '.')) || null,
+                        noteOdeur: parseFloat(row[4]?.replace(',', '.')) || null,
+                        noteCouleur: parseFloat(row[5]?.replace(',', '.')) || null,
+                        lotId: null  // pas de lien vers la table `lots` pour l'instant
+                    });
+
+                    // Ajouter les lignes d'emballage
+                    if (q1 > 0) {
+                        await db.table('production_lot_emballages').add({
+                            id: crypto.randomUUID(),
+                            lotId: lotId,
+                            emballage_type_id: b1.id,
+                            quantite: q1
+                        });
+                    }
+                    if (q5 > 0) {
+                        await db.table('production_lot_emballages').add({
+                            id: crypto.randomUUID(),
+                            lotId: lotId,
+                            emballage_type_id: b5.id,
+                            quantite: q5
+                        });
+                    }
+                    if (q25 > 0) {
+                        await db.table('production_lot_emballages').add({
+                            id: crypto.randomUUID(),
+                            lotId: lotId,
+                            emballage_type_id: b25.id,
+                            quantite: q25
+                        });
+                    }
+                    imported++;
+                }
+
+                const countLots = await db.table('production_lot').count();
+                addLog(`✅ Import terminé – ${imported} lots importés, ${countLots} présents dans la base.`, 'success');
+                addLog('💡 Rafraîchissez l’application (F5) pour voir les données.');
+            } catch (err) {
+                addLog(`❌ Erreur : ${err.message}`, 'error');
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+
+</html>
