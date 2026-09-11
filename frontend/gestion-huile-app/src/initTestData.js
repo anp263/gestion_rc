@@ -20,7 +20,7 @@ export async function initTestData() {
         "• 4 conditionnements, 7 articles de fourniture\n" +
         "• ~35 semaines de récolte et production\n" +
         "• 5 travailleurs, 5 clients\n" +
-        "• Factures avec paiements réels en caisse\n\n" +
+        "• 20 semaines de caisse clôturées avec paiements\n\n" +
         "Continuer ?"
     );
     if (!confirmation) return;
@@ -34,7 +34,6 @@ export async function initTestData() {
     const JOURS_TOTAL = Math.floor((DATE_LIMITE - DEBUT_ANNEE) / (1000 * 60 * 60 * 24)) + 1;
     const SEMAINES_TOTAL = Math.ceil(JOURS_TOTAL / 7);
     const MOIS_TOTAL = aujourdhui.getMonth() + 1;
-    const TAUX_MOYEN = 2500;
 
     // ========== 1. VIDER LES TABLES ==========
     const tablesAEffacer = [
@@ -57,48 +56,13 @@ export async function initTestData() {
     console.log("🧹 Tables vidées.");
 
     // ========== 2. UTILISATEURS ==========
-    const tousUtilisateurs = await db.utilisateurs.toArray();
     await db.utilisateurs.clear();
 
-    const adminUser = {
-        id: crypto.randomUUID(),
-        nom: 'Admin',
-        login: 'admin',
-        mot_de_passe: 'admin123',
-        role: 'superviseur'
-    };
-
-    const vendeur1 = {
-        id: crypto.randomUUID(),
-        nom: 'Marie Vente',
-        login: 'vente',
-        mot_de_passe: 'vente',
-        role: 'superviseur_vente'
-    };
-
-    const vendeur2 = {
-        id: crypto.randomUUID(),
-        nom: 'Pierre Commercial',
-        login: 'pierre',
-        mot_de_passe: 'pierre',
-        role: 'vendeur'
-    };
-
-    const caissier = {
-        id: crypto.randomUUID(),
-        nom: 'Jean Caissier',
-        login: 'caissier',
-        mot_de_passe: 'caisse',
-        role: 'caissier'
-    };
-
-    const prod = {
-        id: crypto.randomUUID(),
-        nom: 'Paul Production',
-        login: 'prod',
-        mot_de_passe: 'prod',
-        role: 'superviseur_huilerie'
-    };
+    const adminUser = { id: crypto.randomUUID(), nom: 'Admin', login: 'admin', mot_de_passe: 'admin123', role: 'superviseur' };
+    const vendeur1 = { id: crypto.randomUUID(), nom: 'Marie Vente', login: 'vente', mot_de_passe: 'vente', role: 'superviseur_vente' };
+    const vendeur2 = { id: crypto.randomUUID(), nom: 'Pierre Commercial', login: 'pierre', mot_de_passe: 'pierre', role: 'vendeur' };
+    const caissier = { id: crypto.randomUUID(), nom: 'Jean Caissier', login: 'caissier', mot_de_passe: 'caisse', role: 'caissier' };
+    const prod = { id: crypto.randomUUID(), nom: 'Paul Production', login: 'prod', mot_de_passe: 'prod', role: 'superviseur_huilerie' };
 
     await safeBulkAdd('utilisateurs', [adminUser, vendeur1, vendeur2, caissier, prod]);
 
@@ -474,9 +438,9 @@ export async function initTestData() {
     ];
     await safeBulkAdd('travailleurs', travailleurs);
 
-    // Lier Marie Vente au travailleur Mukendi Marie
+    // Lier les vendeurs à des travailleurs
     await db.utilisateurs.update(vendeur1.id, { travailleur_id: travailleurs[1].id });
-    await db.utilisateurs.update(vendeur2.id, { travailleur_id: travailleurs[1].id }); // temporaire
+    await db.utilisateurs.update(vendeur2.id, { travailleur_id: travailleurs[1].id });
 
     // ========== 24. PRÉSENCES ==========
     const presences = [];
@@ -495,7 +459,7 @@ export async function initTestData() {
     }
     await safeBulkAdd('presence_suspension', presences);
 
-    // ========== 25. CAISSES ET SOUS-CAISSES ==========
+    // ========== 25. CAISSES ET SOUS-CAISSES AVEC SEMAINES CLÔTURÉES ==========
     const caisseId = crypto.randomUUID();
     await safeBulkAdd('caisses', [{ id: caisseId, nom: 'Caisse Principale', active: true }]);
 
@@ -503,19 +467,46 @@ export async function initTestData() {
     const sousCaisseCDF = { id: crypto.randomUUID(), caisseId, nom: 'Espèces CDF', devise: 'CDF', solde_initial: 2000000, typePaiement: '1', actif: true };
     await safeBulkAdd('sous_caisses', [sousCaisseUSD, sousCaisseCDF]);
 
-    // Semaine de caisse
-    const lundi = new Date(aujourdhui);
-    const jourSemaine = lundi.getDay();
+    // Calculer le lundi de la semaine courante
+    const aujourdhuiSem = new Date();
+    const jourSemaine = aujourdhuiSem.getDay();
     const diffLundi = jourSemaine === 0 ? 6 : jourSemaine - 1;
-    lundi.setDate(lundi.getDate() - diffLundi);
-    const dateDebutSemaine = lundi.toISOString().slice(0, 10);
-    const dateFinSemaine = new Date(lundi.getTime() + 6 * 86400000).toISOString().slice(0, 10);
+    const lundiCourant = new Date(aujourdhuiSem);
+    lundiCourant.setDate(aujourdhuiSem.getDate() - diffLundi);
 
-    const semaineCaisse = {
+    // Créer les 20 semaines passées CLÔTURÉES
+    const semainesCaisse = [];
+    const mapSemainesParLundi = {};
+    for (let i = 20; i >= 1; i--) {
+        const lundi = new Date(lundiCourant);
+        lundi.setDate(lundiCourant.getDate() - i * 7);
+        const dimanche = new Date(lundi);
+        dimanche.setDate(lundi.getDate() + 6);
+        const semaine = {
+            id: crypto.randomUUID(),
+            caisseId,
+            dateDebut: lundi.toISOString().slice(0, 10),
+            dateFin: dimanche.toISOString().slice(0, 10),
+            soldeOuvertureUSD: 0,
+            soldeOuvertureCDF: 0,
+            soldeClotureUSD: 0,
+            soldeClotureCDF: 0,
+            estCloturee: true,
+            dateCloture: new Date().toISOString(),
+            commentaireCloture: 'Semaine de test clôturée automatiquement'
+        };
+        semainesCaisse.push(semaine);
+        mapSemainesParLundi[lundi.toISOString().slice(0, 10)] = semaine;
+    }
+
+    // Semaine courante (ouverte)
+    const dateFinCourante = new Date(lundiCourant);
+    dateFinCourante.setDate(lundiCourant.getDate() + 6);
+    const semaineCourante = {
         id: crypto.randomUUID(),
         caisseId,
-        dateDebut: dateDebutSemaine,
-        dateFin: dateFinSemaine,
+        dateDebut: lundiCourant.toISOString().slice(0, 10),
+        dateFin: dateFinCourante.toISOString().slice(0, 10),
         soldeOuvertureUSD: 5000,
         soldeOuvertureCDF: 2000000,
         soldeClotureUSD: 0,
@@ -524,7 +515,19 @@ export async function initTestData() {
         dateCloture: null,
         commentaireCloture: ''
     };
-    await safeBulkAdd('semaines_caisse', [semaineCaisse]);
+    semainesCaisse.push(semaineCourante);
+    await safeBulkAdd('semaines_caisse', semainesCaisse);
+
+    // Fonction utilitaire : trouver la semaine correspondant à une date
+    function trouverSemaine(dateStr) {
+        const d = new Date(dateStr);
+        const j = d.getDay();
+        const diff = j === 0 ? 6 : j - 1;
+        const lundi = new Date(d);
+        lundi.setDate(d.getDate() - diff);
+        const key = lundi.toISOString().slice(0, 10);
+        return mapSemainesParLundi[key] || semaineCourante;
+    }
 
     // Associer utilisateurs à la caisse
     await safeBulkAdd('caisse_utilisateurs', [
@@ -537,7 +540,6 @@ export async function initTestData() {
     const factureLignes = [];
     const paiementsCaisse = [];
 
-    // Liste des vendeurs pour répartition
     const vendeursList = [vendeur1, vendeur2];
 
     for (let mois = 0; mois < MOIS_TOTAL; mois++) {
@@ -555,7 +557,6 @@ export async function initTestData() {
             const devise = Math.random() > 0.5 ? 'CDF' : 'USD';
             const totalHT = devise === 'CDF' ? 100000 + Math.floor(Math.random() * 300000) : 40 + Math.floor(Math.random() * 200);
 
-            // 70% des factures payées, 20% partiel, 10% en attente
             const randomStatut = Math.random();
             let statutPaiement, statutLivraison, montantPaye;
             if (randomStatut < 0.7) {
@@ -595,7 +596,6 @@ export async function initTestData() {
                 dateCreation: new Date().toISOString()
             });
 
-            // Lignes de facture
             for (let j = 0; j < 2; j++) {
                 const cond = conditionnements[j];
                 const qte = 5 + Math.floor(Math.random() * 15);
@@ -619,12 +619,13 @@ export async function initTestData() {
                 const tauxJour = 2500 + Math.floor(Math.random() * 50);
                 const montantCDF = devise === 'CDF' ? montantPaye : montantPaye * tauxJour;
                 const montantUSD = devise === 'USD' ? montantPaye : montantPaye / tauxJour;
+                const semaineConcernee = trouverSemaine(date);
 
                 paiementsCaisse.push({
                     id: crypto.randomUUID(),
                     caisseId,
                     sousCaisseId: sc.id,
-                    semaineId: semaineCaisse.id,
+                    semaineId: semaineConcernee.id,
                     date,
                     type: 'entree',
                     montant: montantPaye,
@@ -673,12 +674,13 @@ export async function initTestData() {
             const tauxJour = 2500 + Math.floor(Math.random() * 50);
             const montantCDF = devise === 'CDF' ? montant : montant * tauxJour;
             const montantUSD = devise === 'USD' ? montant : montant / tauxJour;
+            const semaineConcernee = trouverSemaine(date);
 
             mouvementsDivers.push({
                 id: crypto.randomUUID(),
                 caisseId,
                 sousCaisseId: sc.id,
-                semaineId: semaineCaisse.id,
+                semaineId: semaineConcernee.id,
                 date,
                 type: 'sortie',
                 montant,

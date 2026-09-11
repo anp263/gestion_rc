@@ -20,8 +20,7 @@
             </li>
         </ul>
 
-        <!-- ==================== STATISTIQUES ==================== -->
-        <div v-show="onglet === 'stats'" class="mt-3">
+        <div v-if="onglet === 'stats'" class="mt-3">
             <div class="row mb-3 align-items-end">
                 <div class="col-md-3">
                     <label>Période</label>
@@ -46,7 +45,6 @@
                 </div>
             </div>
 
-            <!-- Indicateurs rapides -->
             <div class="row mb-4">
                 <div class="col-md-3">
                     <div class="card bg-primary text-white">
@@ -83,45 +81,59 @@
             </div>
 
             <div class="row">
-                <!-- Évolution CA -->
                 <div class="col-md-6 mb-4">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-graph-up"></i> Évolution du CA réalisé</div>
-                        <div class="card-body"><canvas id="chartCA" style="height: 250px;"></canvas></div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="chartCA"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- Évolution Volume -->
                 <div class="col-md-6 mb-4">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-graph-up"></i> Évolution du volume réalisé</div>
-                        <div class="card-body"><canvas id="chartVolume" style="height: 250px;"></canvas></div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="chartVolume"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- Top vendeurs CA -->
                 <div class="col-md-6 mb-4">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-trophy"></i> Top vendeurs (CA)</div>
-                        <div class="card-body"><canvas id="chartTopCA" style="height: 250px;"></canvas></div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="chartTopCA"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- Top vendeurs Volume -->
                 <div class="col-md-6 mb-4">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-trophy"></i> Top vendeurs (Volume)</div>
-                        <div class="card-body"><canvas id="chartTopVol" style="height: 250px;"></canvas></div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="chartTopVol"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- Répartition volumes par contenant -->
                 <div class="col-md-6 mb-4">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-pie-chart"></i> Répartition des volumes</div>
-                        <div class="card-body"><canvas id="chartContenants" style="height: 250px;"></canvas></div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="chartContenants"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== SUIVI VENDEUR ==================== -->
         <div v-show="onglet === 'suivi'" class="mt-3">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -177,7 +189,6 @@
             </div>
         </div>
 
-        <!-- ==================== BONUS (superviseur) ==================== -->
         <div v-show="onglet === 'bonus' && isSuperviseur" class="mt-3">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -255,7 +266,6 @@
                 onglet: 'stats',
                 currentUser: JSON.parse(localStorage.getItem('currentUser') || '{}'),
                 permissionsCache: {},
-                // Statistiques
                 statsPeriode: 'mois',
                 statsDevise: 'CDF',
                 statsCAR: 0,
@@ -268,16 +278,13 @@
                 statsTopVendeursCA: [],
                 statsTopVendeursVol: [],
                 statsVolumesContenants: [],
-                // Suivi vendeur
                 vendeurSuiviId: null,
                 suiviDevise: 'CDF',
                 suiviMois: [],
-                // Bonus
                 bonusMoisStr: new Date().toISOString().slice(0, 7),
                 bonusVendeurs: [],
                 generatingPrime: false,
-                // Data partagée
-                vendeurs: [], // utilisateurs avec permission clients/ecriture
+                vendeurs: [],
                 conditionnements: [],
                 tousLesFactures: [],
                 tousLesPaiements: [],
@@ -320,10 +327,19 @@
         },
         watch: {
             onglet(val) {
-                if (val === 'stats') this.chargerStats();
-                else if (val === 'suivi') this.chargerSuivi();
-                else if (val === 'bonus' && this.isSuperviseur) this.chargerBonus();
+                this.detruireTousLesGraphiques();
+
+                if (val === 'stats') {
+                    this.$nextTick(() => this.chargerStats());
+                } else if (val === 'suivi') {
+                    this.chargerSuivi();
+                } else if (val === 'bonus' && this.isSuperviseur) {
+                    this.chargerBonus();
+                }
             }
+        },
+        beforeUnmount() {
+            this.detruireTousLesGraphiques();
         },
         async mounted() {
             await this.loadPermissions();
@@ -337,13 +353,34 @@
             this.chargerStats();
         },
         methods: {
-            // ==================== PERMISSIONS & DONNÉES INITIALES ====================
+            detruireTousLesGraphiques() {
+                Object.keys(this.chartInstances).forEach(key => {
+                    const chart = this.chartInstances[key];
+                    if (chart) {
+                        try {
+                            chart.destroy();
+                        } catch (e) {
+                            /* ignore */
+                        }
+                    }
+                });
+                this.chartInstances = {};
+            },
+            detruireChart(key) {
+                const chart = this.chartInstances[key];
+                if (chart) {
+                    try {
+                        chart.destroy();
+                    } catch (e) {
+                        /* ignore */
+                    }
+                    this.chartInstances[key] = null;
+                }
+            },
             async loadPermissions() {
                 this.permissionsCache = await getRolePermissions(this.currentUser.role) || {};
             },
             async loadInitialData() {
-
-                // Utilisateurs et filtrage des vendeurs
                 const utilisateurs = await db.utilisateurs.toArray();
                 this.vendeurs = [];
                 for (const u of utilisateurs) {
@@ -352,24 +389,13 @@
                         this.vendeurs.push(u);
                     }
                 }
-
-                // Factures (cache)
                 this.tousLesFactures = await db.factures.toArray();
-
-                // Paiements (mouvementsCaisse validés, type entrée)
                 this.tousLesPaiements = await db.mouvementsCaisse
                     .where({ type: 'entree', status: 'validé' })
                     .toArray();
-
-                // Primes existantes
                 this.toutesLesPrimes = await db.primes.toArray();
-
-               
             },
-
-            // ==================== STATISTIQUES ====================
             async chargerStats() {
-                // Déterminer la période
                 let debut, fin;
                 const maintenant = new Date();
                 if (this.statsPeriode === 'mois') {
@@ -382,14 +408,13 @@
                 } else if (this.statsPeriode === 'annee') {
                     debut = new Date(maintenant.getFullYear(), 0, 1);
                     fin = new Date(maintenant.getFullYear(), 11, 31, 23, 59, 59);
-                } else { // 12 mois
+                } else {
                     debut = new Date(maintenant.getFullYear(), maintenant.getMonth() - 11, 1);
                     fin = new Date(maintenant.getFullYear(), maintenant.getMonth() + 1, 0, 23, 59, 59);
                 }
                 const debutStr = debut.toISOString().slice(0, 10);
                 const finStr = fin.toISOString().slice(0, 10);
 
-                // 1. Totaux indicateurs
                 let caReal = 0, volReal = 0;
                 for (const f of this.tousLesFactures) {
                     const dateComplet = await getDatePaiementComplet(f.id);
@@ -403,10 +428,8 @@
                 this.statsCAR = caReal;
                 this.statsVolR = volReal;
 
-                // Objectifs globaux (vendeur_id = null)
-                const anneeObj = maintenant.getFullYear(); // unique déclaration
+                const anneeObj = maintenant.getFullYear();
 
-                // Objectif CA
                 const allObjCA = await db.objectifs_mensuels
                     .where('annee').equals(anneeObj)
                     .and(o => o.domaine === 'Ventes')
@@ -414,7 +437,6 @@
                 const objCAObj = allObjCA.find(o => o.vendeur_id === null) || null;
                 this.statsObjCA = objCAObj?.donnees?.[maintenant.getMonth()] || 0;
 
-                // Objectif Volume
                 const allObjVol = await db.objectifs_mensuels
                     .where('annee').equals(anneeObj)
                     .and(o => o.domaine === 'VolumeVentes')
@@ -422,7 +444,6 @@
                 const objVolObj = allObjVol.find(o => o.vendeur_id === null) || null;
                 this.statsObjVol = objVolObj?.donnees?.[maintenant.getMonth()] || 0;
 
-                // 2. Évolution mensuelle
                 const evolutionLabels = [];
                 const evolutionCA = [];
                 const evolutionVol = [];
@@ -450,7 +471,6 @@
                 this.statsEvolutionCA = evolutionCA;
                 this.statsEvolutionVol = evolutionVol;
 
-                // 3. Top vendeurs
                 const topParVendeur = {};
                 for (const f of this.tousLesFactures) {
                     const dateComplet = await getDatePaiementComplet(f.id);
@@ -471,7 +491,6 @@
                     .sort((a, b) => b.volume - a.volume)
                     .slice(0, 5);
 
-                // 4. Volumes par contenant
                 const volumesParContenant = {};
                 for (const f of this.tousLesFactures) {
                     const dateComplet = await getDatePaiementComplet(f.id);
@@ -487,15 +506,14 @@
                 }
                 this.statsVolumesContenants = Object.entries(volumesParContenant).map(([nom, volume]) => ({ nom, volume }));
 
-                // 5. Rendu des graphiques
                 await this.$nextTick();
-                this.renderChartCA();
-                this.renderChartVolume();
-                this.renderTopVendeurs();
-                this.renderContenants();
+                setTimeout(() => {
+                    this.renderChartCA();
+                    this.renderChartVolume();
+                    this.renderTopVendeurs();
+                    this.renderContenants();
+                }, 100);
             },
-
-            // ==================== SUIVI VENDEUR ====================
             async chargerSuivi() {
                 const liste = [];
                 for (const mois of this.suiviMoisList) {
@@ -504,7 +522,6 @@
                     const debutStr = debut.toISOString().slice(0, 10);
                     const finStr = fin.toISOString().slice(0, 10);
 
-                    // Factures émises ce mois par le vendeur
                     const facturesMois = this.tousLesFactures.filter(f =>
                         f.date >= debutStr && f.date <= finStr && f.vendeurId === this.vendeurSuiviId
                     );
@@ -512,7 +529,6 @@
                     let volEmis = 0;
                     for (const f of facturesMois) volEmis += await this.getVolumeFacture(f.id);
 
-                    // Factures devenues payées ce mois (tout vendeur, mais on filtre par vendeur)
                     let caRealise = 0, volRealise = 0, delaiSomme = 0, nbPaye = 0;
                     for (const f of this.tousLesFactures) {
                         if (f.vendeurId !== this.vendeurSuiviId) continue;
@@ -530,7 +546,6 @@
                     const prixL = volRealise > 0 ? caRealise / volRealise : 0;
                     const delaiMoyen = nbPaye > 0 ? Math.round(delaiSomme / nbPaye) : null;
 
-                    // Bonus calculé (nouvelle logique mensuelle)
                     let bonus = null;
                     if (this.peutVoirBonus) {
                         const objVolMin = (await db.objectifs_mensuels.where({ annee: annee, domaine: 'BonusVolumeMin', vendeur_id: this.vendeurSuiviId }).first())?.donnees?.[moisNum - 1] || 0;
@@ -546,8 +561,6 @@
                 }
                 this.suiviMois = liste;
             },
-
-            // ==================== BONUS ====================
             async chargerBonus() {
                 this.bonusVendeurs = [];
                 const [annee, mois] = this.bonusMoisStr.split('-').map(Number);
@@ -559,44 +572,41 @@
                 for (const vendeur of this.vendeurs) {
                     let caRealise = 0, volRealise = 0;
                     for (const f of this.tousLesFactures) {
-                    const dateComplet = await getDatePaiementComplet(f.id);
-                    if (dateComplet && dateComplet >= debutStr && dateComplet <= finStr && f.vendeurId === vendeur.id) {
-                        const paiements = this.tousLesPaiements.filter(p => p.factureId === f.id);
-                        const totalPaye = paiements.reduce((s, p) => s + (p.montant_converti_facture || 0), 0);
-                        caRealise += totalPaye;
-                        volRealise += await this.getVolumeFacture(f.id);
-                    }
+                        const dateComplet = await getDatePaiementComplet(f.id);
+                        if (dateComplet && dateComplet >= debutStr && dateComplet <= finStr && f.vendeurId === vendeur.id) {
+                            const paiements = this.tousLesPaiements.filter(p => p.factureId === f.id);
+                            const totalPaye = paiements.reduce((s, p) => s + (p.montant_converti_facture || 0), 0);
+                            caRealise += totalPaye;
+                            volRealise += await this.getVolumeFacture(f.id);
+                        }
                     }
                     const prixL = volRealise > 0 ? caRealise / volRealise : 0;
 
-                    // Récupérer les paramètres mensuels
                     const objVolMin = (await db.objectifs_mensuels.where({ annee, domaine: 'BonusVolumeMin', vendeur_id: vendeur.id }).first())?.donnees?.[mois - 1] || 0;
                     const objPrixMin = (await db.objectifs_mensuels.where({ annee, domaine: 'BonusPrixMin', vendeur_id: vendeur.id }).first())?.donnees?.[mois - 1] || 0;
                     const objBonusL = (await db.objectifs_mensuels.where({ annee, domaine: 'BonusParLitre', vendeur_id: vendeur.id }).first())?.donnees?.[mois - 1] || 0;
 
                     let bonus = 0;
                     if (volRealise >= objVolMin && prixL >= objPrixMin) {
-                    bonus = (volRealise - objVolMin) * objBonusL;
+                        bonus = (volRealise - objVolMin) * objBonusL;
                     }
 
                     const primeExistante = this.toutesLesPrimes.find(p =>
-                    p.travailleur_id === vendeur.travailleur_id && p.annee === annee && p.mois === mois
+                        p.travailleur_id === vendeur.travailleur_id && p.annee === annee && p.mois === mois
                     );
                     this.bonusVendeurs.push({
-                    id: vendeur.id,
-                    nom: vendeur.nom,
-                    travailleur_id: vendeur.travailleur_id,
-                    caRealise,
-                    volRealise,
-                    prixL,
-                    bonus,
-                    primeExistante: !!primeExistante,
-                    primePayee: primeExistante ? primeExistante.payee : false
+                        id: vendeur.id,
+                        nom: vendeur.nom,
+                        travailleur_id: vendeur.travailleur_id,
+                        caRealise,
+                        volRealise,
+                        prixL,
+                        bonus,
+                        primeExistante: !!primeExistante,
+                        primePayee: primeExistante ? primeExistante.payee : false
                     });
                 }
             },
-
-            // ==================== GÉNÉRATION PRIMES ====================
             async genererPrime(vendeurId) {
                 const vendeur = this.vendeurs.find(v => v.id === vendeurId);
                 if (!vendeur || !vendeur.travailleur_id) {
@@ -619,7 +629,6 @@
                         libelle: `Bonus ventes ${new Date(annee, mois - 1).toLocaleDateString('fr-FR', { month: 'long', year: '2-digit' })}`,
                         payee: false
                     });
-                    // Recharger les primes et bonus
                     this.toutesLesPrimes = await db.primes.toArray();
                     await this.chargerBonus();
                     alert('Prime générée avec succès.');
@@ -639,8 +648,6 @@
                 }
                 await this.chargerBonus();
             },
-
-            // ==================== EXPORT PDF ====================
             async exportSuiviPDF() {
                 const vendeurNom = this.vendeurs.find(v => v.id === this.vendeurSuiviId)?.nom || 'Moi';
                 const rows = this.suiviMois.map(m => `
@@ -668,142 +675,184 @@
                 win.document.close();
                 win.print();
             },
-
-            // ==================== GRAPHIQUES ====================
             renderChartCA() {
-                const ctx = document.getElementById('chartCA');
+                const canvas = document.getElementById('chartCA');
+                if (!canvas) return;
+                if (canvas.offsetParent === null) return;
+
+                this.detruireChart('chartCA');
+
+                const ctx = canvas.getContext('2d');
                 if (!ctx) return;
-                if (this.chartInstances.chartCA) this.chartInstances.chartCA.destroy();
-                this.chartInstances.chartCA = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: this.statsEvolutionLabels,
-                        datasets: [{
-                            label: 'CA réalisé (' + this.statsDevise + ')',
-                            data: this.statsEvolutionCA,
-                            borderColor: '#ED1C24',
-                            backgroundColor: 'rgba(237, 28, 36, 0.1)',
-                            fill: true,
-                            tension: 0.2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { callback: (val) => this.formatMontant(val, this.statsDevise) } }
-                        },
-                        plugins: {
-                            tooltip: { callbacks: { label: (ctx) => this.formatMontant(ctx.raw, this.statsDevise) } }
-                        }
-                    }
-                });
-            },
-            renderChartVolume() {
-                const ctx = document.getElementById('chartVolume');
-                if (!ctx) return;
-                if (this.chartInstances.chartVolume) this.chartInstances.chartVolume.destroy();
-                this.chartInstances.chartVolume = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: this.statsEvolutionLabels,
-                        datasets: [{
-                            label: 'Volume réalisé (litres)',
-                            data: this.statsEvolutionVol,
-                            borderColor: '#28a745',
-                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                            fill: true,
-                            tension: 0.2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { callback: (val) => this.formatVolume(val) } }
-                        },
-                        plugins: {
-                            tooltip: { callbacks: { label: (ctx) => this.formatVolume(ctx.raw) + ' L' } }
-                        }
-                    }
-                });
-            },
-            renderTopVendeurs() {
-                // Top CA
-                const ctxCA = document.getElementById('chartTopCA');
-                if (ctxCA) {
-                    if (this.chartInstances.chartTopCA) this.chartInstances.chartTopCA.destroy();
-                    this.chartInstances.chartTopCA = new Chart(ctxCA, {
-                        type: 'bar',
+
+                try {
+                    this.chartInstances.chartCA = new Chart(ctx, {
+                        type: 'line',
                         data: {
-                            labels: this.statsTopVendeursCA.map(v => v.nom),
+                            labels: this.statsEvolutionLabels,
                             datasets: [{
-                                label: 'CA (' + this.statsDevise + ')',
-                                data: this.statsTopVendeursCA.map(v => v.ca),
-                                backgroundColor: '#ED1C24'
+                                label: 'CA réalisé (' + this.statsDevise + ')',
+                                data: this.statsEvolutionCA,
+                                borderColor: '#ED1C24',
+                                backgroundColor: 'rgba(237, 28, 36, 0.1)',
+                                fill: true,
+                                tension: 0.2
                             }]
                         },
                         options: {
                             responsive: true,
-                            indexAxis: 'y',
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true, ticks: { callback: (val) => this.formatMontant(val, this.statsDevise) } }
+                            },
                             plugins: {
                                 tooltip: { callbacks: { label: (ctx) => this.formatMontant(ctx.raw, this.statsDevise) } }
-                            },
-                            scales: { x: { ticks: { callback: (val) => this.formatMontant(val, this.statsDevise) } } }
+                            }
                         }
                     });
+                } catch (e) {
+                    console.warn('Erreur chartCA:', e);
                 }
-                // Top Volume
-                const ctxVol = document.getElementById('chartTopVol');
-                if (ctxVol) {
-                    if (this.chartInstances.chartTopVol) this.chartInstances.chartTopVol.destroy();
-                    this.chartInstances.chartTopVol = new Chart(ctxVol, {
-                        type: 'bar',
+            },
+            renderChartVolume() {
+                const canvas = document.getElementById('chartVolume');
+                if (!canvas) return;
+                if (canvas.offsetParent === null) return;
+
+                this.detruireChart('chartVolume');
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                try {
+                    this.chartInstances.chartVolume = new Chart(ctx, {
+                        type: 'line',
                         data: {
-                            labels: this.statsTopVendeursVol.map(v => v.nom),
+                            labels: this.statsEvolutionLabels,
                             datasets: [{
-                                label: 'Volume (L)',
-                                data: this.statsTopVendeursVol.map(v => v.volume),
-                                backgroundColor: '#28a745'
+                                label: 'Volume réalisé (litres)',
+                                data: this.statsEvolutionVol,
+                                borderColor: '#28a745',
+                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                fill: true,
+                                tension: 0.2
                             }]
                         },
                         options: {
                             responsive: true,
-                            indexAxis: 'y',
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true, ticks: { callback: (val) => this.formatVolume(val) } }
+                            },
                             plugins: {
                                 tooltip: { callbacks: { label: (ctx) => this.formatVolume(ctx.raw) + ' L' } }
-                            },
-                            scales: { x: { ticks: { callback: (val) => this.formatVolume(val) + ' L' } } }
+                            }
                         }
                     });
+                } catch (e) {
+                    console.warn('Erreur chartVolume:', e);
+                }
+            },
+            renderTopVendeurs() {
+                const canvasCA = document.getElementById('chartTopCA');
+                if (canvasCA && canvasCA.offsetParent !== null) {
+                    this.detruireChart('chartTopCA');
+                    const ctxCA = canvasCA.getContext('2d');
+                    if (ctxCA) {
+                        try {
+                            this.chartInstances.chartTopCA = new Chart(ctxCA, {
+                                type: 'bar',
+                                data: {
+                                    labels: this.statsTopVendeursCA.map(v => v.nom),
+                                    datasets: [{
+                                        label: 'CA (' + this.statsDevise + ')',
+                                        data: this.statsTopVendeursCA.map(v => v.ca),
+                                        backgroundColor: '#ED1C24'
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    indexAxis: 'y',
+                                    plugins: {
+                                        tooltip: { callbacks: { label: (ctx) => this.formatMontant(ctx.raw, this.statsDevise) } }
+                                    },
+                                    scales: { x: { ticks: { callback: (val) => this.formatMontant(val, this.statsDevise) } } }
+                                }
+                            });
+                        } catch (e) {
+                            console.warn('Erreur chartTopCA:', e);
+                        }
+                    }
+                }
+
+                const canvasVol = document.getElementById('chartTopVol');
+                if (canvasVol && canvasVol.offsetParent !== null) {
+                    this.detruireChart('chartTopVol');
+                    const ctxVol = canvasVol.getContext('2d');
+                    if (ctxVol) {
+                        try {
+                            this.chartInstances.chartTopVol = new Chart(ctxVol, {
+                                type: 'bar',
+                                data: {
+                                    labels: this.statsTopVendeursVol.map(v => v.nom),
+                                    datasets: [{
+                                        label: 'Volume (L)',
+                                        data: this.statsTopVendeursVol.map(v => v.volume),
+                                        backgroundColor: '#28a745'
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    indexAxis: 'y',
+                                    plugins: {
+                                        tooltip: { callbacks: { label: (ctx) => this.formatVolume(ctx.raw) + ' L' } }
+                                    },
+                                    scales: { x: { ticks: { callback: (val) => this.formatVolume(val) + ' L' } } }
+                                }
+                            });
+                        } catch (e) {
+                            console.warn('Erreur chartTopVol:', e);
+                        }
+                    }
                 }
             },
             renderContenants() {
-                const ctx = document.getElementById('chartContenants');
-                if (!ctx) return;
-                if (this.chartInstances.chartContenants) this.chartInstances.chartContenants.destroy();
-                this.chartInstances.chartContenants = new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels: this.statsVolumesContenants.map(c => c.nom),
-                        datasets: [{
-                            data: this.statsVolumesContenants.map(c => c.volume),
-                            backgroundColor: ['#ED1C24', '#f39c12', '#2ecc71', '#3498db']
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            tooltip: { callbacks: { label: (ctx) => ctx.label + ': ' + this.formatVolume(ctx.raw) + ' L' } }
-                        }
-                    }
-                });
-            },
+                const canvas = document.getElementById('chartContenants');
+                if (!canvas) return;
+                if (canvas.offsetParent === null) return;
 
-            // ==================== UTILITAIRES ====================
+                this.detruireChart('chartContenants');
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                try {
+                    this.chartInstances.chartContenants = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: this.statsVolumesContenants.map(c => c.nom),
+                            datasets: [{
+                                data: this.statsVolumesContenants.map(c => c.volume),
+                                backgroundColor: ['#ED1C24', '#f39c12', '#2ecc71', '#3498db']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                tooltip: { callbacks: { label: (ctx) => ctx.label + ': ' + this.formatVolume(ctx.raw) + ' L' } }
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Erreur chartContenants:', e);
+                }
+            },
             convertirDansDevise(montant, deviseOrigine, deviseCible, dateRef) {
                 if (deviseOrigine === deviseCible) return montant;
-                const taux = 2500; // si besoin précis, utiliser await getTauxPourDate(dateRef)
+                const taux = 2500;
                 if (deviseCible === 'CDF') return deviseOrigine === 'USD' ? montant * taux : montant;
                 else return deviseOrigine === 'CDF' ? montant / taux : montant;
             },
@@ -837,3 +886,16 @@
         }
     };
 </script>
+
+<style scoped>
+.chart-wrapper {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+.chart-wrapper canvas {
+    max-height: 250px !important;
+    max-width: 100% !important;
+}
+</style>
