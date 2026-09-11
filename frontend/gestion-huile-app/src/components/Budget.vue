@@ -78,7 +78,7 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="budget-table-wrapper">
+                    <div class="budget-table-wrapper" ref="budgetTableWrapper">
                         <table class="table budget-input-table">
                             <thead>
                                 <tr class="header-row">
@@ -94,7 +94,7 @@
                                     <td v-for="m in 12" :key="m" class="col-mois">
                                         <input type="text" class="form-control form-control-sm text-end"
                                             :value="formatMontant(tauxMensuels[m-1], 'CDF')"
-                                            @input="formatInputBudget($event)"
+                                            @focus="$event.target.select()"
                                             @blur="updateTauxValue(m-1, $event.target.value)">
                                     </td>
                                 </tr>
@@ -109,9 +109,12 @@
                                     <td class="text-end fw-bold col-total bg-light">{{ formatMontant(totalParPosteAffichage[poste.id], deviseAffichage) }}</td>
                                     <td v-for="m in 12" :key="m" class="col-mois">
                                         <input type="text" class="form-control form-control-sm text-end"
-                                            :value="formatMontant(valeurAfficheeCellule(poste.id, m-1), deviseAffichage)"
-                                            @input="formatInputBudget($event)"
-                                            @blur="updateBudgetValue(poste.id, m-1, $event)">
+                                            :data-poste-id="poste.id"
+                                            :data-mois="m-1"
+                                            @focus="$event.target.select()"
+                                            @input="onCellInput(poste.id, m-1, $event)"
+                                            @blur="onCellBlur(poste.id, m-1, $event)"
+                                            @keydown.enter.prevent="onCellBlur(poste.id, m-1, $event)">
                                     </td>
                                 </tr>
                                 <tr class="total-row total-depenses">
@@ -131,9 +134,12 @@
                                     <td class="text-end fw-bold col-total bg-light">{{ formatMontant(totalParPosteAffichage[poste.id], deviseAffichage) }}</td>
                                     <td v-for="m in 12" :key="m" class="col-mois">
                                         <input type="text" class="form-control form-control-sm text-end"
-                                            :value="formatMontant(valeurAfficheeCellule(poste.id, m-1), deviseAffichage)"
-                                            @input="formatInputBudget($event)"
-                                            @blur="updateBudgetValue(poste.id, m-1, $event)">
+                                            :data-poste-id="poste.id"
+                                            :data-mois="m-1"
+                                            @focus="$event.target.select()"
+                                            @input="onCellInput(poste.id, m-1, $event)"
+                                            @blur="onCellBlur(poste.id, m-1, $event)"
+                                            @keydown.enter.prevent="onCellBlur(poste.id, m-1, $event)">
                                     </td>
                                 </tr>
                                 <tr class="total-row total-revenus">
@@ -163,16 +169,28 @@
                             <button type="button" class="btn-close" @click="showHistorique = false"></button>
                         </div>
                         <div class="modal-body">
+                            <p class="text-muted small">
+                                Chaque sauvegarde crée une nouvelle version. La version la plus récente est utilisée pour les calculs.
+                                Restaurer charge les données <strong>en mémoire uniquement</strong> ; n'oubliez pas de cliquer sur 💾 Enregistrer.
+                            </p>
                             <table class="table table-sm">
                                 <thead>
                                     <tr><th>Version</th><th>Date</th><th>Utilisateur</th><th>Actions</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="v in versions" :key="v.version">
-                                        <td>{{ v.version }}</td>
+                                    <tr v-for="v in versions" :key="v.version"
+                                        :class="v.version === versions[0]?.version ? 'table-success' : ''">
+                                        <td>
+                                            {{ v.version }}
+                                            <span v-if="v.version === versions[0]?.version" class="badge bg-success ms-1">Active</span>
+                                        </td>
                                         <td>{{ formatDate(v.date_creation) }}</td>
                                         <td>{{ v.utilisateur_nom || '-' }}</td>
-                                        <td><button class="btn btn-sm btn-primary" @click="restaurerVersion(v)">Restaurer</button></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" @click="restaurerVersion(v)">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Restaurer
+                                            </button>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -184,30 +202,26 @@
 
         <!-- ==================== ONGLET SUIVI ==================== -->
         <div v-if="onglet === 'suivi'" class="mt-3">
-            <!-- Barre d'outils : sélecteur de vue + année + export -->
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
                     <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Tableau de bord budgétaire</h5>
                     <div class="btn-group ms-2" role="group">
                         <button type="button" class="btn btn-sm"
                             :class="vueKPI === 'mois' ? 'btn-primary' : 'btn-outline-primary'"
-                            @click="vueKPI = 'mois'">
-                            Mois
-                        </button>
+                            @click="vueKPI = 'mois'">Mois</button>
                         <button type="button" class="btn btn-sm"
                             :class="vueKPI === 'cumul' ? 'btn-primary' : 'btn-outline-primary'"
-                            @click="vueKPI = 'cumul'">
-                            Cumul
-                        </button>
+                            @click="vueKPI = 'cumul'">Cumul</button>
                         <button type="button" class="btn btn-sm"
                             :class="vueKPI === 'annee' ? 'btn-primary' : 'btn-outline-primary'"
-                            @click="vueKPI = 'annee'">
-                            Année
-                        </button>
+                            @click="vueKPI = 'annee'">Année</button>
                     </div>
+                    <select v-if="vueKPI === 'mois'" v-model.number="moisKPI" class="form-select form-select-sm w-auto">
+                        <option v-for="(nom, idx) in moisNomsComplets" :key="idx" :value="idx">{{ nom }}</option>
+                    </select>
                     <span class="text-muted ms-2">
-                        <small v-if="vueKPI === 'mois'">Mois : {{ moisNomsComplets[new Date().getMonth()] }}</small>
-                        <small v-else-if="vueKPI === 'cumul'">Janvier → {{ moisNomsComplets[new Date().getMonth()] }}</small>
+                        <small v-if="vueKPI === 'mois'">Mois : {{ moisNomsComplets[moisKPI] }}</small>
+                        <small v-else-if="vueKPI === 'cumul'">Cumul jusqu'à : {{ moisNomsComplets[moisKPI] }}</small>
                         <small v-else>Total annuel</small>
                     </span>
                 </div>
@@ -222,7 +236,6 @@
             </div>
 
             <div class="row mb-4" id="suivi-budget-table">
-                <!-- KPI CA -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
@@ -245,7 +258,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- KPI Dépenses -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
@@ -268,7 +280,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- KPI Variation -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
@@ -288,9 +299,9 @@
                         </div>
                     </div>
                 </div>
-                <!-- KPI Postes en dépassement -->
                 <div class="col-md-3 mb-3">
-                    <div class="card kpi-card h-100">
+                    <div class="card kpi-card h-100"
+                        :class="kpiPostesEnDepassement.length > 0 ? 'border-danger' : 'border-success'">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
@@ -301,16 +312,23 @@
                                     <h3 class="mb-1" :class="kpiPostesEnDepassement.length > 0 ? 'text-danger' : 'text-success'">
                                         {{ kpiPostesEnDepassement.length }}
                                     </h3>
-                                    <small class="text-muted">sur {{ postesBudgetaires.length }} postes</small>
+                                    <small class="text-muted">sur {{ postesDepenses.length }} postes</small>
                                 </div>
                                 <div class="kpi-icon" :class="kpiPostesEnDepassement.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'"><i class="bi bi-exclamation-triangle"></i></div>
+                            </div>
+                            <div v-if="kpiPostesEnDepassement.length > 0" class="mt-2">
+                                <small class="text-danger">
+                                    <span v-for="(p, i) in kpiPostesEnDepassement.slice(0, 3)" :key="p.id">
+                                        {{ p.nom }}<span v-if="i < Math.min(kpiPostesEnDepassement.length, 3) - 1">, </span>
+                                    </span>
+                                    <span v-if="kpiPostesEnDepassement.length > 3">...</span>
+                                </small>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Graphiques -->
             <div class="row mb-4">
                 <div class="col-md-6 mb-3">
                     <div class="card h-100">
@@ -326,7 +344,6 @@
                 </div>
             </div>
 
-            <!-- Tableau synthèse -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-table"></i> Synthèse annuelle par poste</span>
@@ -346,7 +363,7 @@
                                     <th class="text-end">Réalisé annuel</th>
                                     <th class="text-end">Écart</th>
                                     <th class="text-center">%</th>
-                                    <th></th>
+                                    <th style="width: 200px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -369,9 +386,14 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary" @click="voirDetailPoste(poste)">
-                                                <i class="bi bi-eye"></i> Détail
-                                            </button>
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-sm btn-outline-primary" @click="voirDetailPoste(poste)" title="Détail mensuel">
+                                                    <i class="bi bi-eye"></i> Détail
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary" @click="voirMouvementsPoste(poste)" title="Voir tous les mouvements">
+                                                    <i class="bi bi-list-ul"></i> Mouvements
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </template>
@@ -400,7 +422,8 @@
                                 <tr><th>Mois</th><th class="text-end">Prévu</th><th class="text-end">Réalisé</th><th class="text-end">Écart</th><th class="text-center">%</th></tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(nom, idx) in moisNomsComplets" :key="idx">
+                                <tr v-for="(nom, idx) in moisNomsComplets" :key="idx"
+                                    :class="posteEnDetail.type === 'sortie' && pourcentagePosteMois[posteEnDetail.id]?.[idx] > 110 ? 'table-danger' : ''">
                                     <td>{{ nom }}</td>
                                     <td class="text-end">{{ formatMontant(previsionParPosteMois[posteEnDetail.id]?.[idx] || 0, deviseAffichage) }}</td>
                                     <td class="text-end">{{ formatMontant(realiseParPosteMois[posteEnDetail.id]?.[idx] || 0, deviseAffichage) }}</td>
@@ -429,7 +452,114 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="modal-footer"><button class="btn btn-secondary" @click="posteEnDetail = null">Fermer</button></div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" @click="voirMouvementsPoste(posteEnDetail)">
+                            <i class="bi bi-list-ul"></i> Voir les mouvements
+                        </button>
+                        <button class="btn btn-secondary" @click="posteEnDetail = null">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal liste des mouvements du poste -->
+        <div v-if="mouvementsPosteEnDetail" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            Mouvements : {{ mouvementsPosteEnDetail.nom }}
+                            <span v-if="mouvementsPosteEnDetail.type === 'entree'" class="badge bg-success ms-2">Revenu</span>
+                            <span v-else class="badge bg-warning text-dark ms-2">Dépense</span>
+                            <span class="badge bg-secondary ms-2">{{ anneeSuivi }}</span>
+                        </h5>
+                        <button type="button" class="btn-close" @click="fermerMouvementsPoste"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3 g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Recherche</label>
+                                <input type="text" class="form-control form-control-sm"
+                                    v-model="rechercheMouvement"
+                                    placeholder="Rechercher dans la désignation, justificatif...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Filtrer par mois</label>
+                                <select class="form-select form-select-sm" v-model="filtreMoisMouvement">
+                                    <option value="">Tous les mois</option>
+                                    <option v-for="(nom, idx) in moisNomsComplets" :key="idx" :value="idx">{{ nom }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Source</label>
+                                <select class="form-select form-select-sm" v-model="filtreSourceMouvement">
+                                    <option value="">Toutes les sources</option>
+                                    <option value="Caisse">Caisse</option>
+                                    <option value="Banque">Banque</option>
+                                    <option value="Manuelle">Manuelle</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-sm btn-outline-secondary w-100" @click="reinitialiserFiltresMouvements">
+                                    <i class="bi bi-x-circle"></i> Réinitialiser
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">
+                                {{ mouvementsPosteFiltresTries.length }} mouvement(s) ·
+                                Total (CDF) : <strong>{{ formatMontant(totalMouvementsPosteCDF, 'CDF') }}</strong>
+                                · Total ({{ deviseAffichage }}) : <strong>{{ formatMontant(convertirVersDevise(totalMouvementsPosteCDF, deviseAffichage), deviseAffichage) }}</strong>
+                            </small>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 55vh;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th @click="triMouvementsPoste('date')" style="cursor: pointer; width: 100px;">
+                                            Date
+                                            <i v-if="triMouvementsPosteCol === 'date'"
+                                                :class="triMouvementsPosteOrdre === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                        </th>
+                                        <th @click="triMouvementsPoste('source')" style="cursor: pointer; width: 90px;">Source</th>
+                                        <th @click="triMouvementsPoste('designation')" style="cursor: pointer;">Désignation</th>
+                                        <th @click="triMouvementsPoste('justificatif')" style="cursor: pointer;">Justificatif</th>
+                                        <th style="width: 70px;">Devise</th>
+                                        <th @click="triMouvementsPoste('montant')" style="cursor: pointer; width: 120px; text-align: right;">Montant d'origine</th>
+                                        <th style="width: 130px; text-align: right;">Montant CDF</th>
+                                        <th style="width: 130px; text-align: right;" class="bg-primary text-white">Montant {{ deviseAffichage }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="m in mouvementsPosteFiltresTries" :key="m.id">
+                                        <td>{{ formatDate(m.date) }}</td>
+                                        <td>
+                                            <span class="badge"
+                                                :class="m.source === 'Caisse' ? 'bg-primary' : (m.source === 'Banque' ? 'bg-info text-dark' : 'bg-secondary')">
+                                                {{ m.source }}
+                                            </span>
+                                        </td>
+                                        <td>{{ m.designation || '-' }}</td>
+                                        <td>{{ m.justificatif || '-' }}</td>
+                                        <td>{{ m.devise }}</td>
+                                        <td class="text-end">{{ formatMontant(m.montant, m.devise) }}</td>
+                                        <td class="text-end">{{ formatMontant(m.montantCDF, 'CDF') }}</td>
+                                        <td class="text-end fw-bold text-primary">
+                                            {{ formatMontant(convertirVersDevise(m.montantCDF, deviseAffichage), deviseAffichage) }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="mouvementsPosteFiltresTries.length === 0">
+                                        <td colspan="8" class="text-center text-muted py-3">Aucun mouvement</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @click="fermerMouvementsPoste">Fermer</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -461,8 +591,7 @@
                                     @input="formatInputBudget($event)"
                                     @blur="updateSoldeInitial($event.target.value)">
                                 <button class="btn btn-outline-secondary" type="button"
-                                    @click="modeManuelSoldeInitial = !modeManuelSoldeInitial"
-                                    :title="modeManuelSoldeInitial ? 'Revenir au solde calculé automatiquement' : 'Définir manuellement'">
+                                    @click="modeManuelSoldeInitial = !modeManuelSoldeInitial">
                                     <i :class="modeManuelSoldeInitial ? 'bi bi-arrow-counterclockwise' : 'bi bi-pencil'"></i>
                                 </button>
                             </div>
@@ -473,7 +602,7 @@
                             </div>
                         </div>
                         <div class="col-md-4 d-flex gap-2 align-items-center">
-                            <button class="btn btn-outline-primary" @click="recalculerSoldeInitial" title="Recalcule le solde d'ouverture à partir des mouvements réels de l'année précédente et relance toute la projection">
+                            <button class="btn btn-outline-primary" @click="recalculerSoldeInitial">
                                 <i class="bi bi-arrow-repeat"></i> Recalculer
                             </button>
                         </div>
@@ -512,9 +641,7 @@
                                     <small class="text-muted">Écart vs budget initial</small>
                                     <h5 class="mb-0" :class="ecartProjection >= 0 ? 'text-success' : 'text-danger'">
                                         {{ formatMontant(ecartProjection, deviseAffichage) }}
-                                        <small class="text-muted fs-6 ms-1">
-                                            ({{ ecartProjection >= 0 ? 'meilleur' : 'moins bon' }})
-                                        </small>
+                                        <small class="text-muted fs-6 ms-1">({{ ecartProjection >= 0 ? 'meilleur' : 'moins bon' }})</small>
                                     </h5>
                                     <small class="text-muted">
                                         Projeté : {{ formatMontant(soldeFinalProjete, deviseAffichage) }}
@@ -541,7 +668,7 @@
                                     <th colspan="2" class="text-center bg-success text-white">Revenus</th>
                                     <th colspan="2" class="text-center bg-danger text-white">Dépenses</th>
                                     <th rowspan="2" class="text-end align-middle">Solde fin</th>
-                                    <th rowspan="2" class="text-end align-middle">Variation solde</th>
+                                    <th rowspan="2" class="text-end align-middle">Variation</th>
                                 </tr>
                                 <tr class="table-light">
                                     <th class="text-end">Prévu</th>
@@ -593,19 +720,19 @@
 import { db } from '../db';
 import html2canvas from 'html2canvas';
 import Chart from 'chart.js/auto';
-import { convertirMontants } from '../utils/taux';
 import { getMouvementsBudget } from '../utils/financeUtils';
 
 export default {
     name: 'Budget',
     data() {
+        const maintenant = new Date();
         return {
-            onglet: 'suivi',
+            onglet: 'budget',
             deviseAffichage: 'CDF',
             anneesDisponibles: [2026, 2027, 2028, 2029, 2030],
-            anneeBudget: new Date().getFullYear(),
-            anneeSuivi: new Date().getFullYear(),
-            anneeTreso: new Date().getFullYear(),
+            anneeBudget: maintenant.getFullYear(),
+            anneeSuivi: maintenant.getFullYear(),
+            anneeTreso: maintenant.getFullYear(),
             moisNoms: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
             moisNomsComplets: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
             postesBudgetaires: [],
@@ -615,7 +742,8 @@ export default {
             showHistorique: false,
             modificationsNonSauvegardees: false,
 
-            vueKPI: 'annee',
+            vueKPI: 'mois',
+            moisKPI: maintenant.getMonth(),
 
             previsionParPosteMois: {},
             realiseParPosteMois: {},
@@ -625,14 +753,19 @@ export default {
             pourcentageTotalParPoste: {},
             posteEnDetail: null,
 
+            mouvementsPosteEnDetail: null,
+            mouvementsPoste: [],
+            rechercheMouvement: '',
+            filtreMoisMouvement: '',
+            filtreSourceMouvement: '',
+            triMouvementsPosteCol: 'date',
+            triMouvementsPosteOrdre: 'desc',
+
             modeManuelSoldeInitial: false,
             soldeInitialAutoCalcule: null,
             soldeInitialSaisi: 0,
             soldesTreso: [],
             messageSoldeInitial: '',
-
-            ecrituresCaisse: [],
-            ecrituresBanque: [],
 
             chartCA: null,
             chartDepenses: null,
@@ -644,103 +777,93 @@ export default {
         postesRevenus() { return this.postesBudgetaires.filter(p => p.type === 'entree'); },
 
         vueKPILabel() {
-            if (this.vueKPI === 'mois') return 'Mois';
+            if (this.vueKPI === 'mois') return this.moisNoms[this.moisKPI];
             if (this.vueKPI === 'cumul') return 'Cumul';
             return 'Année';
         },
-        moisCourantIndex() {
-            const maintenant = new Date();
-            if (this.anneeSuivi < maintenant.getFullYear()) return 11;
-            if (this.anneeSuivi > maintenant.getFullYear()) return -1;
-            return maintenant.getMonth();
-        },
 
-        // ---------- KPI selon la vue ----------
         kpiRevenusRealise() {
-            if (this.vueKPI === 'mois') {
-                const m = this.moisCourantIndex;
-                return m >= 0 ? (this.totalRevenusRealiseMoisAffichage[m] || 0) : 0;
-            } else if (this.vueKPI === 'cumul') {
-                const m = this.moisCourantIndex;
-                return this.totalRevenusRealiseMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
-            }
+            if (this.vueKPI === 'mois') return this.totalRevenusRealiseMoisAffichage[this.moisKPI] || 0;
+            if (this.vueKPI === 'cumul') return this.totalRevenusRealiseMoisAffichage.slice(0, this.moisKPI + 1).reduce((a, b) => a + b, 0);
             return this.totalRevenusRealiseAffichage;
         },
         kpiRevenusPrevu() {
-            if (this.vueKPI === 'mois') {
-                const m = this.moisCourantIndex;
-                return m >= 0 ? (this.totalRevenusPrevisionMoisAffichage[m] || 0) : 0;
-            } else if (this.vueKPI === 'cumul') {
-                const m = this.moisCourantIndex;
-                return this.totalRevenusPrevisionMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
-            }
+            if (this.vueKPI === 'mois') return this.totalRevenusPrevisionMoisAffichage[this.moisKPI] || 0;
+            if (this.vueKPI === 'cumul') return this.totalRevenusPrevisionMoisAffichage.slice(0, this.moisKPI + 1).reduce((a, b) => a + b, 0);
             return this.totalRevenusPrevisionAffichage;
         },
         kpiPctRevenus() {
             const prev = this.kpiRevenusPrevu;
-            const real = this.kpiRevenusRealise;
-            return prev === 0 ? 0 : Math.round((real / prev) * 100);
+            return prev === 0 ? 0 : Math.round((this.kpiRevenusRealise / prev) * 100);
         },
-
         kpiDepensesRealise() {
-            if (this.vueKPI === 'mois') {
-                const m = this.moisCourantIndex;
-                return m >= 0 ? (this.totalDepensesRealiseMoisAffichage[m] || 0) : 0;
-            } else if (this.vueKPI === 'cumul') {
-                const m = this.moisCourantIndex;
-                return this.totalDepensesRealiseMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
-            }
+            if (this.vueKPI === 'mois') return this.totalDepensesRealiseMoisAffichage[this.moisKPI] || 0;
+            if (this.vueKPI === 'cumul') return this.totalDepensesRealiseMoisAffichage.slice(0, this.moisKPI + 1).reduce((a, b) => a + b, 0);
             return this.totalDepensesRealiseAffichage;
         },
         kpiDepensesPrevu() {
-            if (this.vueKPI === 'mois') {
-                const m = this.moisCourantIndex;
-                return m >= 0 ? (this.totalDepensesPrevisionMoisAffichage[m] || 0) : 0;
-            } else if (this.vueKPI === 'cumul') {
-                const m = this.moisCourantIndex;
-                return this.totalDepensesPrevisionMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
-            }
+            if (this.vueKPI === 'mois') return this.totalDepensesPrevisionMoisAffichage[this.moisKPI] || 0;
+            if (this.vueKPI === 'cumul') return this.totalDepensesPrevisionMoisAffichage.slice(0, this.moisKPI + 1).reduce((a, b) => a + b, 0);
             return this.totalDepensesPrevisionAffichage;
         },
         kpiPctDepenses() {
             const prev = this.kpiDepensesPrevu;
-            const real = this.kpiDepensesRealise;
-            return prev === 0 ? 0 : Math.round((real / prev) * 100);
+            return prev === 0 ? 0 : Math.round((this.kpiDepensesRealise / prev) * 100);
         },
-
-        kpiVariation() {
-            return this.kpiRevenusRealise - this.kpiDepensesRealise;
-        },
-        kpiVariationPrevue() {
-            return this.kpiRevenusPrevu - this.kpiDepensesPrevu;
-        },
-
+        kpiVariation() { return this.kpiRevenusRealise - this.kpiDepensesRealise; },
+        kpiVariationPrevue() { return this.kpiRevenusPrevu - this.kpiDepensesPrevu; },
         kpiPostesEnDepassement() {
             const result = [];
             for (const p of this.postesBudgetaires) {
                 if (p.type !== 'sortie') continue;
-
                 let prev, real;
                 if (this.vueKPI === 'mois') {
-                    const m = this.moisCourantIndex;
-                    if (m < 0) continue;
-                    prev = this.previsionParPosteMois[p.id]?.[m] || 0;
-                    real = this.realiseParPosteMois[p.id]?.[m] || 0;
+                    prev = this.previsionParPosteMois[p.id]?.[this.moisKPI] || 0;
+                    real = this.realiseParPosteMois[p.id]?.[this.moisKPI] || 0;
                 } else if (this.vueKPI === 'cumul') {
-                    const m = this.moisCourantIndex;
-                    prev = (this.previsionParPosteMois[p.id] || []).slice(0, m + 1).reduce((a, b) => a + b, 0);
-                    real = (this.realiseParPosteMois[p.id] || []).slice(0, m + 1).reduce((a, b) => a + b, 0);
+                    prev = (this.previsionParPosteMois[p.id] || []).slice(0, this.moisKPI + 1).reduce((a, b) => a + b, 0);
+                    real = (this.realiseParPosteMois[p.id] || []).slice(0, this.moisKPI + 1).reduce((a, b) => a + b, 0);
                 } else {
                     prev = this.totalPrevisionParPoste[p.id] || 0;
                     real = this.totalRealiseParPoste[p.id] || 0;
                 }
-
                 if (prev > 0 && real > prev * 1.1) result.push(p);
             }
             return result;
         },
 
-        // ---------- Autres computed ----------
+        mouvementsPosteFiltresTries() {
+            let result = [...this.mouvementsPoste];
+            if (this.rechercheMouvement) {
+                const r = this.rechercheMouvement.toLowerCase();
+                result = result.filter(m =>
+                    (m.designation || '').toLowerCase().includes(r) ||
+                    (m.justificatif || '').toLowerCase().includes(r) ||
+                    (m.commentaire || '').toLowerCase().includes(r)
+                );
+            }
+            if (this.filtreMoisMouvement !== '') {
+                result = result.filter(m => new Date(m.date).getMonth() === parseInt(this.filtreMoisMouvement));
+            }
+            if (this.filtreSourceMouvement) {
+                result = result.filter(m => m.source === this.filtreSourceMouvement);
+            }
+            const col = this.triMouvementsPosteCol;
+            const ordre = this.triMouvementsPosteOrdre;
+            result.sort((a, b) => {
+                let valA = a[col], valB = b[col];
+                if (col === 'date') { valA = new Date(valA); valB = new Date(valB); }
+                else if (col === 'montant') { valA = parseFloat(valA) || 0; valB = parseFloat(valB) || 0; }
+                else { valA = (valA || '').toString().toLowerCase(); valB = (valB || '').toString().toLowerCase(); }
+                if (ordre === 'asc') return valA > valB ? 1 : -1;
+                return valA < valB ? 1 : -1;
+            });
+            return result;
+        },
+        totalMouvementsPosteCDF() {
+            return this.mouvementsPosteFiltresTries.reduce((s, m) => s + (m.montantCDF || 0), 0);
+        },
+
         soldeInitialTreso() {
             if (this.modeManuelSoldeInitial) return this.soldeInitialSaisi;
             const baseCDF = this.soldeInitialAutoCalcule || 0;
@@ -760,22 +883,17 @@ export default {
         },
         soldeFinalProjete() {
             if (!this.soldesTreso.length) return 0;
-            const last = this.soldesTreso[this.soldesTreso.length - 1];
-            return last?.soldeContinu || 0;
+            return this.soldesTreso[this.soldesTreso.length - 1]?.soldeContinu || 0;
         },
         soldeFinalBudgetPur() {
             let solde = this.soldeInitialTreso;
             for (let m = 0; m < 12; m++) {
                 const s = this.soldesTreso[m];
-                if (s?.flux) {
-                    solde += s.flux.revenusPrevus - s.flux.depensesPrevues;
-                }
+                if (s?.flux) solde += s.flux.revenusPrevus - s.flux.depensesPrevues;
             }
             return solde;
         },
-        ecartProjection() {
-            return this.soldeFinalProjete - this.soldeFinalBudgetPur;
-        },
+        ecartProjection() { return this.soldeFinalProjete - this.soldeFinalBudgetPur; },
 
         totalDepensesMoisAffichage() {
             const totalCDF = Array(12).fill(0);
@@ -795,9 +913,7 @@ export default {
             if (this.deviseAffichage === 'CDF') return totalCDF;
             return totalCDF.map((val, idx) => val / (this.tauxMensuels[idx] || 2500));
         },
-        soldeMoisAffichage() {
-            return this.totalRevenusMoisAffichage.map((v, i) => v - this.totalDepensesMoisAffichage[i]);
-        },
+        soldeMoisAffichage() { return this.totalRevenusMoisAffichage.map((v, i) => v - this.totalDepensesMoisAffichage[i]); },
         totalDepensesAffichage() { return this.totalDepensesMoisAffichage.reduce((a, b) => a + b, 0); },
         totalRevenusAffichage() { return this.totalRevenusMoisAffichage.reduce((a, b) => a + b, 0); },
         soldeTotalAffichage() { return this.totalRevenusAffichage - this.totalDepensesAffichage; },
@@ -851,27 +967,13 @@ export default {
         totalDepensesRealiseAffichage() { return this.totalDepensesRealiseMoisAffichage.reduce((a, b) => a + b, 0); },
         totalRevenusPrevisionAffichage() { return this.totalRevenusPrevisionMoisAffichage.reduce((a, b) => a + b, 0); },
         totalRevenusRealiseAffichage() { return this.totalRevenusRealiseMoisAffichage.reduce((a, b) => a + b, 0); },
-        variationTotaleAffichage() { return this.totalRevenusRealiseAffichage - this.totalDepensesRealiseAffichage; },
-        variationTotalePrevue() { return this.totalRevenusPrevisionAffichage - this.totalDepensesPrevisionAffichage; },
-        postesEnDepassement() {
-            const result = [];
-            for (const p of this.postesBudgetaires) {
-                if (p.type !== 'sortie') continue;
-                const prev = this.totalPrevisionParPoste[p.id] || 0;
-                const real = this.totalRealiseParPoste[p.id] || 0;
-                if (prev > 0 && real > prev * 1.1) result.push(p);
-            }
-            return result;
-        },
         pourcentageTotalDepenses() {
             const prev = this.totalDepensesPrevisionAffichage;
-            const real = this.totalDepensesRealiseAffichage;
-            return prev === 0 ? 0 : Math.round((real / prev) * 100);
+            return prev === 0 ? 0 : Math.round((this.totalDepensesRealiseAffichage / prev) * 100);
         },
         pourcentageTotalRevenus() {
             const prev = this.totalRevenusPrevisionAffichage;
-            const real = this.totalRevenusRealiseAffichage;
-            return prev === 0 ? 0 : Math.round((real / prev) * 100);
+            return prev === 0 ? 0 : Math.round((this.totalRevenusRealiseAffichage / prev) * 100);
         },
     },
     watch: {
@@ -879,31 +981,31 @@ export default {
             this.chargerPostes();
             this.chargerBudget();
             this.chargerTauxMensuels();
+            this.$nextTick(() => this.rafraichirTousLesInputs());
         },
-        anneeSuivi() {
-            this.chargerPostesSuivi();
-        },
-        anneeTreso() {
-            this.reinitialiserTresorerie();
-        },
+        anneeSuivi() { this.chargerPostesSuivi(); },
+        anneeTreso() { this.reinitialiserTresorerie(); },
         deviseAffichage(newVal, oldVal) {
+            // Rafraîchir les inputs avec la nouvelle devise (méthode robuste via DOM)
+            this.$nextTick(() => this.rafraichirTousLesInputs());
+
             if (this.modeManuelSoldeInitial && oldVal && newVal !== oldVal) {
                 const taux = this.tauxMensuels[0] || 2500;
-                if (oldVal === 'CDF' && newVal === 'USD') {
-                    this.soldeInitialSaisi = this.soldeInitialSaisi / taux;
-                } else if (oldVal === 'USD' && newVal === 'CDF') {
-                    this.soldeInitialSaisi = this.soldeInitialSaisi * taux;
-                }
+                if (oldVal === 'CDF' && newVal === 'USD') this.soldeInitialSaisi = this.soldeInitialSaisi / taux;
+                else if (oldVal === 'USD' && newVal === 'CDF') this.soldeInitialSaisi = this.soldeInitialSaisi * taux;
             }
-            this.chargerBudget();
             this.chargerPostesSuivi();
             this.reinitialiserTresorerie();
         },
         onglet(val) {
-            if (val === 'suivi') {
-                this.$nextTick(() => setTimeout(() => this.renderSuiviCharts(), 150));
-            } else if (val === 'tresorerie') {
-                this.$nextTick(() => setTimeout(() => this.renderChartTresorerie(), 150));
+            if (val === 'suivi') this.$nextTick(() => setTimeout(() => this.renderSuiviCharts(), 150));
+            else if (val === 'tresorerie') this.$nextTick(() => setTimeout(() => this.renderChartTresorerie(), 150));
+            else if (val === 'budget') this.$nextTick(() => this.rafraichirTousLesInputs());
+        },
+        budgetData: {
+            deep: true,
+            handler() {
+                this.$nextTick(() => this.rafraichirTousLesInputs());
             }
         }
     },
@@ -913,10 +1015,9 @@ export default {
         await this.chargerTauxMensuels();
         await this.chargerPostesSuivi();
         await this.reinitialiserTresorerie();
+        this.$nextTick(() => this.rafraichirTousLesInputs());
     },
-    beforeUnmount() {
-        this.detruireCharts();
-    },
+    beforeUnmount() { this.detruireCharts(); },
     methods: {
         detruireCharts() {
             if (this.chartCA) { try { this.chartCA.destroy(); } catch (e) { /* ignore */ } this.chartCA = null; }
@@ -926,16 +1027,85 @@ export default {
 
         formatMontant(montant, devise) {
             if (montant === undefined || montant === null) montant = 0;
+            if (devise === 'USD') {
+                return new Intl.NumberFormat('fr-FR', { useGrouping: true, maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(montant);
+            }
             const formatter = new Intl.NumberFormat('fr-FR', { useGrouping: true, maximumFractionDigits: 0, minimumFractionDigits: 0 });
             return formatter.format(Math.round(montant));
         },
-        formatDate(dateStr) { return dateStr ? new Date(dateStr).toLocaleString() : ''; },
-        changerDevise(devise) { this.deviseAffichage = devise; },
-        valeurAfficheeCellule(posteId, mois) {
-            const valeurCDF = (this.budgetData[posteId] || [])[mois] || 0;
-            if (this.deviseAffichage === 'CDF') return valeurCDF;
-            return valeurCDF / (this.tauxMensuels[mois] || 2500);
+        formatDate(dateStr) { return dateStr ? new Date(dateStr).toLocaleDateString('fr-FR') : ''; },
+        changerDevise(devise) {
+            if (devise === this.deviseAffichage) return;
+            this.deviseAffichage = devise;
         },
+
+        // ============ SAISIE CELLULES ============
+        getCellDisplayValue(posteId, moisIndex) {
+            const valeurCDF = (this.budgetData[posteId] || [])[moisIndex] || 0;
+            if (valeurCDF === 0) return '';
+            if (this.deviseAffichage === 'CDF') return Math.round(valeurCDF).toString();
+            const taux = this.tauxMensuels[moisIndex] || 2500;
+            const valeurUSD = valeurCDF / taux;
+            if (valeurUSD < 10) return (Math.round(valeurUSD * 100) / 100).toString();
+            if (valeurUSD < 1000) return (Math.round(valeurUSD * 10) / 10).toString();
+            return Math.round(valeurUSD).toString();
+        },
+        onCellInput(posteId, moisIndex, event) {
+            const input = event.target;
+            const cleaned = input.value.replace(/'/g, '').replace(/\s/g, '').replace(/,/g, '.');
+            let number = parseFloat(cleaned);
+            if (isNaN(number)) number = 0;
+            let valeurCDF = number;
+            if (this.deviseAffichage === 'USD') {
+                valeurCDF = number * (this.tauxMensuels[moisIndex] || 2500);
+            }
+            if (!this.budgetData[posteId]) this.budgetData[posteId] = Array(12).fill(0);
+            this.budgetData[posteId][moisIndex] = valeurCDF;
+            this.budgetData = { ...this.budgetData };
+            this.modificationsNonSauvegardees = true;
+        },
+        onCellBlur(posteId, moisIndex, event) {
+            const input = event.target;
+            const valeurCDF = (this.budgetData[posteId] || [])[moisIndex] || 0;
+            if (valeurCDF === 0) { input.value = ''; return; }
+            if (this.deviseAffichage === 'CDF') {
+                input.value = this.formatMontant(valeurCDF, 'CDF');
+            } else {
+                const taux = this.tauxMensuels[moisIndex] || 2500;
+                input.value = this.formatMontant(valeurCDF / taux, 'USD');
+            }
+        },
+        /**
+         * ⭐ Méthode clé : rafraîchit TOUS les inputs via manipulation directe du DOM.
+         * Cette méthode est robuste : elle fonctionne même si l'utilisateur a modifié
+         * un input et que la valeur liée a changé (Vue ne met pas toujours à jour le DOM).
+         */
+        rafraichirTousLesInputs() {
+            if (this.onglet !== 'budget') return;
+            const wrapper = this.$refs.budgetTableWrapper;
+            if (!wrapper) return;
+            const inputs = wrapper.querySelectorAll('input[data-poste-id]');
+            inputs.forEach(input => {
+                const posteId = input.getAttribute('data-poste-id');
+                const moisIndex = parseInt(input.getAttribute('data-mois'), 10);
+                if (!posteId || isNaN(moisIndex)) return;
+                const valeurCDF = (this.budgetData[posteId] || [])[moisIndex] || 0;
+                let affichage;
+                if (valeurCDF === 0) {
+                    affichage = '';
+                } else if (this.deviseAffichage === 'CDF') {
+                    affichage = this.formatMontant(valeurCDF, 'CDF');
+                } else {
+                    const taux = this.tauxMensuels[moisIndex] || 2500;
+                    affichage = this.formatMontant(valeurCDF / taux, 'USD');
+                }
+                // Mettre à jour seulement si différent pour éviter les boucles
+                if (input.value !== affichage) {
+                    input.value = affichage;
+                }
+            });
+        },
+
         formatInputBudget(event) {
             let value = event.target.value;
             value = value.replace(/'/g, '').replace(/\s/g, '').replace(/,/g, '.');
@@ -948,22 +1118,16 @@ export default {
             let str = value.toString().replace(/'/g, '').replace(/,/g, '.');
             return parseFloat(str) || 0;
         },
-        updateBudgetValue(posteId, moisIndex, event) {
-            const input = event.target;
-            const valeurSaisie = this.parseMontantBudget(input.value);
-            let valeurCDF = valeurSaisie;
-            if (this.deviseAffichage === 'USD') {
-                valeurCDF = valeurSaisie * (this.tauxMensuels[moisIndex] || 2500);
-            }
-            if (!this.budgetData[posteId]) this.budgetData[posteId] = Array(12).fill(0);
-            this.budgetData[posteId][moisIndex] = valeurCDF;
-            this.budgetData = { ...this.budgetData };
-            this.modificationsNonSauvegardees = true;
-        },
         updateTauxValue(moisIndex, valeurSaisieStr) {
             let valeurSaisie = this.parseMontantBudget(valeurSaisieStr);
             this.tauxMensuels[moisIndex] = valeurSaisie;
             this.sauvegarderTauxMensuels();
+            this.$nextTick(() => this.rafraichirTousLesInputs());
+        },
+        convertirVersDevise(montantCDF, deviseCible) {
+            if (deviseCible === 'CDF') return montantCDF;
+            const tauxMoyen = this.tauxMensuels.reduce((a, b) => a + b, 0) / 12 || 2500;
+            return montantCDF / tauxMoyen;
         },
 
         getPourcentageClassDepenses(pct) {
@@ -990,13 +1154,88 @@ export default {
         },
         getEcartClass(poste, realise, prevu) {
             if (!prevu) return '';
-            if (poste.type === 'entree') {
-                return realise >= prevu ? 'text-success fw-bold' : 'text-danger fw-bold';
-            } else {
-                return realise > prevu * 1.1 ? 'text-danger fw-bold' : (realise > prevu ? 'text-warning fw-bold' : 'text-success fw-bold');
-            }
+            if (poste.type === 'entree') return realise >= prevu ? 'text-success fw-bold' : 'text-danger fw-bold';
+            return realise > prevu * 1.1 ? 'text-danger fw-bold' : (realise > prevu ? 'text-warning fw-bold' : 'text-success fw-bold');
         },
         voirDetailPoste(poste) { this.posteEnDetail = poste; },
+
+        // ============ MOUVEMENTS POSTE ============
+        async voirMouvementsPoste(poste) {
+            this.mouvementsPosteEnDetail = poste;
+            this.mouvementsPoste = [];
+            this.rechercheMouvement = '';
+            this.filtreMoisMouvement = '';
+            this.filtreSourceMouvement = '';
+            this.triMouvementsPosteCol = 'date';
+            this.triMouvementsPosteOrdre = 'desc';
+
+            const tousMouvements = [];
+            const dateDebut = `${this.anneeSuivi}-01-01`;
+            const dateFin = `${this.anneeSuivi}-12-31`;
+
+            try {
+                const mvtsCaisse = await db.mouvementsCaisse
+                    .where('date').between(dateDebut, dateFin, true, true)
+                    .and(m => m.posteBudgetaire === poste.nom && !m.annule && !m.remplaceParCorrection)
+                    .toArray();
+                for (const m of mvtsCaisse) {
+                    tousMouvements.push({
+                        id: m.id, date: m.date, source: 'Caisse',
+                        designation: m.designation || '', justificatif: m.justificatif || '',
+                        devise: m.devise, montant: m.montant,
+                        montantCDF: m.montant_cdf || 0, commentaire: m.commentaire || ''
+                    });
+                }
+                const mvtsManuels = await db.ecritures_manuelles
+                    .where('date').between(dateDebut, dateFin, true, true)
+                    .and(m => m.posteBudgetaire === poste.nom)
+                    .toArray();
+                for (const m of mvtsManuels) {
+                    tousMouvements.push({
+                        id: m.id, date: m.date, source: 'Manuelle',
+                        designation: m.designation || '', justificatif: m.justificatif || '',
+                        devise: m.devise, montant: m.montant,
+                        montantCDF: m.montant_cdf || 0, commentaire: m.commentaire || ''
+                    });
+                }
+                const mvtsBanque = await db.mouvements_bancaires
+                    .where('date_operation').between(dateDebut, dateFin, true, true)
+                    .and(m => m.poste_id === poste.id && m.statut === 'valide')
+                    .toArray();
+                for (const m of mvtsBanque) {
+                    tousMouvements.push({
+                        id: m.id, date: m.date_operation, source: 'Banque',
+                        designation: m.libelle || '', justificatif: '',
+                        devise: m.devise, montant: m.montant,
+                        montantCDF: m.montant_cdf || 0, commentaire: m.commentaire || ''
+                    });
+                }
+                tousMouvements.sort((a, b) => new Date(b.date) - new Date(a.date));
+                this.mouvementsPoste = tousMouvements;
+            } catch (error) {
+                console.error('Erreur chargement mouvements:', error);
+                this.mouvementsPoste = [];
+            }
+        },
+        fermerMouvementsPoste() {
+            this.mouvementsPosteEnDetail = null;
+            this.mouvementsPoste = [];
+        },
+        reinitialiserFiltresMouvements() {
+            this.rechercheMouvement = '';
+            this.filtreMoisMouvement = '';
+            this.filtreSourceMouvement = '';
+            this.triMouvementsPosteCol = 'date';
+            this.triMouvementsPosteOrdre = 'desc';
+        },
+        triMouvementsPoste(col) {
+            if (this.triMouvementsPosteCol === col) {
+                this.triMouvementsPosteOrdre = this.triMouvementsPosteOrdre === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.triMouvementsPosteCol = col;
+                this.triMouvementsPosteOrdre = 'asc';
+            }
+        },
 
         async chargerPostes() {
             this.postesBudgetaires = await db.postes_budgetaires.where('annee').equals(this.anneeBudget).toArray();
@@ -1023,7 +1262,7 @@ export default {
                 this.budgetData = {};
                 for (let p of this.postesBudgetaires) this.budgetData[p.id] = Array(12).fill(0);
             } else {
-                this.budgetData = versions[0].donnees;
+                this.budgetData = JSON.parse(JSON.stringify(versions[0].donnees));
             }
             this.modificationsNonSauvegardees = false;
         },
@@ -1048,10 +1287,11 @@ export default {
             this.showHistorique = true;
         },
         restaurerVersion(version) {
-            if (confirm(`Restaurer la version ${version.version} ?`)) {
-                this.budgetData = version.donnees;
+            if (confirm(`Restaurer la version ${version.version} ?\n\nLes données seront chargées en mémoire. N'oubliez pas de cliquer sur 💾 Enregistrer.`)) {
+                this.budgetData = JSON.parse(JSON.stringify(version.donnees));
                 this.showHistorique = false;
                 this.modificationsNonSauvegardees = true;
+                this.$nextTick(() => this.rafraichirTousLesInputs());
             }
         },
 
@@ -1212,100 +1452,40 @@ export default {
                         labels: this.moisNoms,
                         datasets: [
                             {
-                                type: 'line',
-                                label: 'Solde',
-                                data: soldeData,
-                                borderColor: '#28a745',
-                                backgroundColor: 'transparent',
-                                borderWidth: 3,
-                                tension: 0.2,
-                                pointRadius: 5,
-                                yAxisID: 'y-solde',
-                                order: 0,
+                                type: 'line', label: 'Solde', data: soldeData,
+                                borderColor: '#28a745', backgroundColor: 'transparent',
+                                borderWidth: 3, tension: 0.2, pointRadius: 5,
+                                yAxisID: 'y-solde', order: 0,
                                 segment: {
                                     borderColor: (ctx) => {
                                         const idxFin = ctx.p1DataIndex;
-                                        const maintenant = new Date();
-                                        const estFutur = this.anneeTreso > maintenant.getFullYear() ||
-                                            (this.anneeTreso === maintenant.getFullYear() && idxFin > maintenant.getMonth());
+                                        const estFutur = this.soldesTreso[idxFin]?.statut === 'futur';
                                         return estFutur ? '#0d6efd' : '#28a745';
                                     }
                                 },
                                 pointBackgroundColor: (ctx) => {
                                     const idx = ctx.dataIndex;
-                                    const maintenant = new Date();
-                                    const estFutur = this.anneeTreso > maintenant.getFullYear() ||
-                                        (this.anneeTreso === maintenant.getFullYear() && idx > maintenant.getMonth());
+                                    const estFutur = this.soldesTreso[idx]?.statut === 'futur';
                                     return estFutur ? '#0d6efd' : '#28a745';
                                 },
-                                pointBorderColor: '#fff',
-                                pointBorderWidth: 2
+                                pointBorderColor: '#fff', pointBorderWidth: 2
                             },
-                            {
-                                type: 'bar',
-                                label: 'Revenus prévus',
-                                data: revenusPrevusData,
-                                backgroundColor: 'rgba(40, 167, 69, 0.25)',
-                                borderColor: '#28a745',
-                                borderWidth: 1,
-                                yAxisID: 'y-flux',
-                                order: 2
-                            },
-                            {
-                                type: 'bar',
-                                label: 'Revenus réalisés',
-                                data: revenusReelsData,
-                                backgroundColor: 'rgba(40, 167, 69, 0.85)',
-                                yAxisID: 'y-flux',
-                                order: 1
-                            },
-                            {
-                                type: 'bar',
-                                label: 'Dépenses prévues',
-                                data: depensesPrevuesData,
-                                backgroundColor: 'rgba(237, 28, 36, 0.25)',
-                                borderColor: '#ED1C24',
-                                borderWidth: 1,
-                                yAxisID: 'y-flux',
-                                order: 2
-                            },
-                            {
-                                type: 'bar',
-                                label: 'Dépenses réalisées',
-                                data: depensesReellesData,
-                                backgroundColor: 'rgba(237, 28, 36, 0.85)',
-                                yAxisID: 'y-flux',
-                                order: 1
-                            }
+                            { type: 'bar', label: 'Revenus prévus', data: revenusPrevusData, backgroundColor: 'rgba(40, 167, 69, 0.25)', borderColor: '#28a745', borderWidth: 1, yAxisID: 'y-flux', order: 2 },
+                            { type: 'bar', label: 'Revenus réalisés', data: revenusReelsData, backgroundColor: 'rgba(40, 167, 69, 0.85)', yAxisID: 'y-flux', order: 1 },
+                            { type: 'bar', label: 'Dépenses prévues', data: depensesPrevuesData, backgroundColor: 'rgba(237, 28, 36, 0.25)', borderColor: '#ED1C24', borderWidth: 1, yAxisID: 'y-flux', order: 2 },
+                            { type: 'bar', label: 'Dépenses réalisées', data: depensesReellesData, backgroundColor: 'rgba(237, 28, 36, 0.85)', yAxisID: 'y-flux', order: 1 }
                         ]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        responsive: true, maintainAspectRatio: false,
                         interaction: { intersect: false, mode: 'index' },
                         plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: (c) => c.dataset.label + ' : ' + this.formatMontant(c.raw, this.deviseAffichage) + ' ' + this.deviseAffichage
-                                }
-                            },
+                            tooltip: { callbacks: { label: (c) => c.dataset.label + ' : ' + this.formatMontant(c.raw, this.deviseAffichage) + ' ' + this.deviseAffichage } },
                             legend: { position: 'top' }
                         },
                         scales: {
-                            'y-flux': {
-                                type: 'linear',
-                                position: 'left',
-                                title: { display: true, text: 'Flux (entrées / sorties) - ' + this.deviseAffichage },
-                                ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) },
-                                grid: { drawOnChartArea: false }
-                            },
-                            'y-solde': {
-                                type: 'linear',
-                                position: 'right',
-                                title: { display: true, text: 'Solde - ' + this.deviseAffichage },
-                                ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) },
-                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                            }
+                            'y-flux': { type: 'linear', position: 'left', title: { display: true, text: 'Flux - ' + this.deviseAffichage }, ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) }, grid: { drawOnChartArea: false } },
+                            'y-solde': { type: 'linear', position: 'right', title: { display: true, text: 'Solde - ' + this.deviseAffichage }, ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) }, grid: { color: 'rgba(0, 0, 0, 0.05)' } }
                         }
                     }
                 });
@@ -1333,13 +1513,11 @@ export default {
             const dateFin = `${anneePrec}-12-31`;
             const semainesNonCloturees = await db.semaines_caisse
                 .where('dateFin').between(dateDebut, dateFin, true, true)
-                .filter(s => !s.estCloturee)
-                .count();
+                .filter(s => !s.estCloturee).count();
             if (semainesNonCloturees > 0) return { ok: false, raison: `Il reste des semaines non clôturées en ${anneePrec}.` };
             const mouvementsAJustifier = await db.mouvementsCaisse
                 .where('date').between(dateDebut, dateFin, true, true)
-                .filter(m => m.aJustifier === true && !m.annule)
-                .count();
+                .filter(m => m.aJustifier === true && !m.annule).count();
             if (mouvementsAJustifier > 0) return { ok: false, raison: `Il reste des écritures "à justifier" en ${anneePrec}.` };
             return { ok: true };
         },
@@ -1348,10 +1526,8 @@ export default {
             const dateFinAnneePrec = `${anneePrecedente}-12-31`;
             const dateDebutAnnee = `${annee}-01-01`;
             const verif = await this.verifierClotureEtJustificatifs(annee);
-            if (!verif.ok) {
-                this.messageSoldeInitial = verif.raison;
-                return null;
-            }
+            if (!verif.ok) { this.messageSoldeInitial = verif.raison; return null; }
+
             const caisses = await db.caisses.toArray();
             const comptes = await db.comptes_bancaires.toArray();
             let totalCDF = 0, totalUSD = 0, auMoinsUneCaisse = false;
@@ -1515,13 +1691,7 @@ export default {
 </script>
 
 <style scoped>
-.budget-table-wrapper {
-    max-height: 72vh;
-    overflow: auto;
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    margin: 12px;
-}
+.budget-table-wrapper { max-height: 72vh; overflow: auto; border-radius: 8px; border: 1px solid #dee2e6; margin: 12px; }
 .budget-input-table { border-collapse: separate; border-spacing: 0; font-size: 0.85rem; margin-bottom: 0; width: 100%; }
 .budget-input-table th, .budget-input-table td { vertical-align: middle; padding: 0.35rem 0.4rem; white-space: nowrap; border-color: #e5e5e5; }
 .budget-input-table .header-row th { background-color: #f1f3f5; font-weight: 600; color: #495057; position: sticky; top: 0; z-index: 5; border-bottom: 2px solid #adb5bd; }

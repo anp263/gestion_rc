@@ -18,8 +18,8 @@ export async function initTestData() {
         "Il va générer :\n" +
         "• Utilisateurs, sites, parcelles, clients, travailleurs\n" +
         "• Budget complet sur 12 mois\n" +
-        "• Mouvements réels proches du budget avec quelques dépassements\n" +
-        "• 20 semaines de caisse clôturées\n\n" +
+        "• Semaines clôturées depuis janvier\n" +
+        "• Mouvements réels proches du budget avec dépassements\n\n" +
         "Continuer ?"
     );
     if (!confirmation) return;
@@ -375,35 +375,76 @@ export async function initTestData() {
     }
     await safeBulkAdd('presence_suspension', presences);
 
-    // ========== 25. CAISSES ET SEMAINES ==========
+    // ========== 25. CAISSES ET SEMAINES CLÔTURÉES DEPUIS JANVIER ==========
     const caisseId = crypto.randomUUID();
     await safeBulkAdd('caisses', [{ id: caisseId, nom: 'Caisse Principale', active: true }]);
     const sousCaisseUSD = { id: crypto.randomUUID(), caisseId, nom: 'Espèces USD', devise: 'USD', solde_initial: 5000, typePaiement: '1', actif: true };
     const sousCaisseCDF = { id: crypto.randomUUID(), caisseId, nom: 'Espèces CDF', devise: 'CDF', solde_initial: 2000000, typePaiement: '1', actif: true };
     await safeBulkAdd('sous_caisses', [sousCaisseUSD, sousCaisseCDF]);
 
+    // Lundi de la semaine courante
     const aujourdhuiSem = new Date();
     const jourSemaine = aujourdhuiSem.getDay();
     const diffLundi = jourSemaine === 0 ? 6 : jourSemaine - 1;
     const lundiCourant = new Date(aujourdhuiSem);
     lundiCourant.setDate(aujourdhuiSem.getDate() - diffLundi);
 
+    // Premier lundi de l'année
+    const premierJanvier = new Date(ANNEE_COURANTE, 0, 1);
+    const jourPremierJanvier = premierJanvier.getDay();
+    const diffLundiPremier = jourPremierJanvier === 0 ? 6 : jourPremierJanvier - 1;
+    const premierLundi = new Date(premierJanvier);
+    premierLundi.setDate(premierJanvier.getDate() - diffLundiPremier);
+
+    // Nombre de semaines écoulées depuis le premier lundi
+    const diffMs = lundiCourant - premierLundi;
+    const nbSemaines = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+
     const semainesCaisse = [];
     const mapSemainesParLundi = {};
-    for (let i = 20; i >= 1; i--) {
+
+    // Créer toutes les semaines clôturées depuis le premier lundi
+    for (let i = nbSemaines; i >= 1; i--) {
         const lundi = new Date(lundiCourant);
         lundi.setDate(lundiCourant.getDate() - i * 7);
         const dimanche = new Date(lundi);
         dimanche.setDate(lundi.getDate() + 6);
-        const semaine = { id: crypto.randomUUID(), caisseId, dateDebut: lundi.toISOString().slice(0, 10), dateFin: dimanche.toISOString().slice(0, 10), soldeOuvertureUSD: 0, soldeOuvertureCDF: 0, soldeClotureUSD: 0, soldeClotureCDF: 0, estCloturee: true, dateCloture: new Date().toISOString(), commentaireCloture: 'Semaine de test clôturée automatiquement' };
+        const semaine = {
+            id: crypto.randomUUID(),
+            caisseId,
+            dateDebut: lundi.toISOString().slice(0, 10),
+            dateFin: dimanche.toISOString().slice(0, 10),
+            soldeOuvertureUSD: 0,
+            soldeOuvertureCDF: 0,
+            soldeClotureUSD: 0,
+            soldeClotureCDF: 0,
+            estCloturee: true,
+            dateCloture: new Date().toISOString(),
+            commentaireCloture: 'Semaine de test clôturée automatiquement'
+        };
         semainesCaisse.push(semaine);
         mapSemainesParLundi[lundi.toISOString().slice(0, 10)] = semaine;
     }
+
+    // Semaine courante (ouverte)
     const dateFinCourante = new Date(lundiCourant);
     dateFinCourante.setDate(lundiCourant.getDate() + 6);
-    const semaineCourante = { id: crypto.randomUUID(), caisseId, dateDebut: lundiCourant.toISOString().slice(0, 10), dateFin: dateFinCourante.toISOString().slice(0, 10), soldeOuvertureUSD: 5000, soldeOuvertureCDF: 2000000, soldeClotureUSD: 0, soldeClotureCDF: 0, estCloturee: false, dateCloture: null, commentaireCloture: '' };
+    const semaineCourante = {
+        id: crypto.randomUUID(),
+        caisseId,
+        dateDebut: lundiCourant.toISOString().slice(0, 10),
+        dateFin: dateFinCourante.toISOString().slice(0, 10),
+        soldeOuvertureUSD: 5000,
+        soldeOuvertureCDF: 2000000,
+        soldeClotureUSD: 0,
+        soldeClotureCDF: 0,
+        estCloturee: false,
+        dateCloture: null,
+        commentaireCloture: ''
+    };
     semainesCaisse.push(semaineCourante);
     await safeBulkAdd('semaines_caisse', semainesCaisse);
+    console.log(`✅ ${semainesCaisse.length} semaines de caisse créées (${nbSemaines} clôturées + 1 courante).`);
 
     function trouverSemaine(dateStr) {
         const d = new Date(dateStr);
@@ -421,7 +462,6 @@ export async function initTestData() {
     ]);
 
     // ========== 26. BUDGET COMPLET 12 MOIS ==========
-    // Budget mensuel stable (CDF)
     const budgetMensuelParPoste = {
         'Vente huile': 5000000,
         'Transport régimes': 400000,
@@ -440,17 +480,13 @@ export async function initTestData() {
     for (let p of postesBudget) {
         budgetData[p.id] = Array(12).fill(0);
         const montantMensuel = budgetMensuelParPoste[p.nom] || 0;
-        // Croissance légère sur l'année (sauf salaires)
         for (let m = 0; m < 12; m++) {
             let montant = montantMensuel;
             if (p.nom === 'Vente huile') {
-                // Croissance de 2% par mois
                 montant = Math.round(montantMensuel * (1 + m * 0.02));
             } else if (p.nom.includes('Salaire') || p.nom === 'Loyer' || p.nom === 'Honoraires comptables') {
-                // Fixe
                 montant = montantMensuel;
             } else {
-                // Légère variation
                 montant = Math.round(montantMensuel * (0.95 + Math.random() * 0.1));
             }
             budgetData[p.id][m] = montant;
@@ -486,10 +522,10 @@ export async function initTestData() {
             const devise = Math.random() > 0.5 ? 'CDF' : 'USD';
             const totalHT = devise === 'CDF' ? 100000 + Math.floor(Math.random() * 300000) : 40 + Math.floor(Math.random() * 200);
             const randomStatut = Math.random();
-            let statutPaiement, montantPaye;
-            if (randomStatut < 0.7) { statutPaiement = 'payée'; montantPaye = totalHT; }
-            else if (randomStatut < 0.9) { statutPaiement = 'partiel'; montantPaye = totalHT * 0.5; }
-            else { statutPaiement = 'en_attente'; montantPaye = 0; }
+            let statutPaiement;
+            if (randomStatut < 0.7) statutPaiement = 'payée';
+            else if (randomStatut < 0.9) statutPaiement = 'partiel';
+            else statutPaiement = 'en_attente';
 
             factures.push({ id: factureId, numero, date, echeance: '30j', dateEcheance: new Date(new Date(date).getTime() + 30 * 86400000).toISOString().slice(0, 10), clientId: client.id, vendeurId: vendeur.id, siteId: sites[0].id, devise, tarif: devise === 'CDF' ? 'B' : 'A', remise: 0, remiseMontant: 0, remiseType: 'amount', totalHT, statutLivraison: 'livrée', statutPaiement, typeFacture: 'huile', blSelectionne: true, dateLivraison: date, datePaiement: statutPaiement === 'payée' ? date : null, notes: '', dateCreation: new Date().toISOString() });
 
@@ -504,17 +540,22 @@ export async function initTestData() {
     await safeBulkAdd('factures', factures);
     await safeBulkAdd('facture_lignes', factureLignes);
 
-    // ========== 28. MOUVEMENTS DE CAISSE (réels proches du budget) ==========
+    // ========== 28. MOUVEMENTS DE CAISSE (proches du budget avec dépassements) ==========
     const tousMouvementsCaisse = [];
     const postesSortie = postesBudget.filter(p => p.type === 'sortie' && !p.systeme);
     const posteVenteHuile = postesBudget.find(p => p.nom === 'Vente huile');
 
     for (let mois = 0; mois < MOIS_TOTAL; mois++) {
-        // Pour chaque poste budgétaire : générer 1 à 3 mouvements réels proches du budget
         for (let p of postesSortie) {
             const budgetMois = budgetData[p.id][mois];
-            // Génère des mouvements qui totalisent entre 80% et 120% du budget
-            const ratioTotal = 0.8 + Math.random() * 0.4;
+            // 70% proches du budget, 30% dépassement
+            const estDepassement = Math.random() < 0.3;
+            let ratioTotal;
+            if (estDepassement) {
+                ratioTotal = 1.15 + Math.random() * 0.35; // 115% à 150%
+            } else {
+                ratioTotal = 0.8 + Math.random() * 0.35; // 80% à 115%
+            }
             const totalMois = Math.round(budgetMois * ratioTotal);
 
             const nbMvts = 1 + Math.floor(Math.random() * 3);
@@ -551,7 +592,7 @@ export async function initTestData() {
             }
         }
 
-        // Revenus : paiements de factures pour ce mois (rattachés au budget Vente huile)
+        // Revenus : paiements de factures pour ce mois
         const facturesMois = factures.filter(f => {
             const d = new Date(f.date);
             return d.getFullYear() === ANNEE_COURANTE && d.getMonth() === mois;
@@ -579,14 +620,20 @@ export async function initTestData() {
             });
         }
 
-        // Complément de revenus pour atteindre le budget Vente huile du mois
-        let totalRevenusMois = facturesMois.reduce((sum, f) => {
+        // Complément de revenus pour atteindre ~ le budget Vente huile du mois
+        let totalRevenusMoisCDF = facturesMois.reduce((sum, f) => {
             if (f.statutPaiement === 'en_attente') return sum;
-            return sum + (f.statutPaiement === 'payée' ? f.totalHT : f.totalHT * 0.5);
+            const montantPaye = f.statutPaiement === 'payée' ? f.totalHT : f.totalHT * 0.5;
+            const tauxJour = 2500;
+            return sum + (f.devise === 'CDF' ? montantPaye : montantPaye * tauxJour);
         }, 0);
-        // Conversion en CDF pour comparaison
         const budgetVenteMois = budgetData[posteVenteHuile.id][mois];
-        const manque = Math.max(0, budgetVenteMois * (0.9 + Math.random() * 0.2) - totalRevenusMois);
+        const estDepassementRevenu = Math.random() < 0.3;
+        const ratioRevenu = estDepassementRevenu
+            ? 1.05 + Math.random() * 0.25
+            : 0.85 + Math.random() * 0.2;
+        const objectifRevenu = Math.round(budgetVenteMois * ratioRevenu);
+        const manque = Math.max(0, objectifRevenu - totalRevenusMoisCDF);
         if (manque > 0) {
             const jourMax = (mois === MOIS_TOTAL - 1) ? DATE_LIMITE.getDate() : new Date(ANNEE_COURANTE, mois + 1, 0).getDate();
             const jour = 1 + Math.floor(Math.random() * jourMax);
@@ -669,12 +716,15 @@ export async function initTestData() {
     console.log("✅ Données de test générées avec succès !");
     alert(
         "✅ Données de test générées !\n\n" +
-        "Comptes :\n" +
-        "• admin / admin123\n" +
-        "• vente / vente\n" +
-        "• pierre / pierre\n" +
-        "• caissier / caisse\n" +
-        "• prod / prod"
+        "Comptes disponibles :\n" +
+        "• admin / admin123 (superviseur)\n" +
+        "• vente / vente (superviseur vente)\n" +
+        "• pierre / pierre (vendeur)\n" +
+        "• caissier / caisse (caissier)\n" +
+        "• prod / prod (superviseur huilerie)\n\n" +
+        `${semainesCaisse.length} semaines de caisse créées.\n` +
+        `${tousMouvementsCaisse.length} mouvements de caisse.\n` +
+        `${factures.length} factures.`
     );
     location.reload();
 }
