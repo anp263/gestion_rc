@@ -39,7 +39,6 @@
 
         <!-- ==================== ONGLET SAISIE DU BUDGET ==================== -->
         <div v-if="onglet === 'budget'" class="mt-3">
-            <!-- KPI cards de saisie -->
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="card border-success">
@@ -76,9 +75,7 @@
                         <select v-model="anneeBudget" class="form-select form-select-sm w-auto">
                             <option v-for="a in anneesDisponibles" :key="a" :value="a">{{ a }}</option>
                         </select>
-                        <button class="btn btn-sm btn-success" @click="sauvegarderBudget">
-                            💾 Enregistrer
-                        </button>
+                        <button class="btn btn-sm btn-success" @click="sauvegarderBudget">💾 Enregistrer</button>
                         <button class="btn btn-sm btn-secondary" @click="chargerHistorique">📜 Historique</button>
                     </div>
                 </div>
@@ -93,11 +90,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Taux de change -->
                                 <tr class="row-taux">
-                                    <td class="col-poste fw-bold">
-                                        <i class="bi bi-currency-exchange"></i> Taux USD → CDF
-                                    </td>
+                                    <td class="col-poste fw-bold"><i class="bi bi-currency-exchange"></i> Taux USD → CDF</td>
                                     <td class="col-total text-center text-muted">—</td>
                                     <td v-for="m in 12" :key="m" class="col-mois">
                                         <input type="text" class="form-control form-control-sm text-end"
@@ -106,8 +100,6 @@
                                             @blur="updateTauxValue(m-1, $event.target.value)">
                                     </td>
                                 </tr>
-
-                                <!-- Section DÉPENSES -->
                                 <tr class="section-header section-depenses">
                                     <td colspan="14">
                                         <i class="bi bi-cart-dash"></i> DÉPENSES
@@ -115,12 +107,8 @@
                                     </td>
                                 </tr>
                                 <tr v-for="poste in postesDepenses" :key="poste.id" class="row-poste">
-                                    <td class="fw-bold col-poste">
-                                        <i class="bi bi-dot text-warning"></i>{{ poste.nom }}
-                                    </td>
-                                    <td class="text-end fw-bold col-total bg-light">
-                                        {{ formatMontant(totalParPosteAffichage[poste.id], deviseAffichage) }}
-                                    </td>
+                                    <td class="fw-bold col-poste"><i class="bi bi-dot text-warning"></i>{{ poste.nom }}</td>
+                                    <td class="text-end fw-bold col-total bg-light">{{ formatMontant(totalParPosteAffichage[poste.id], deviseAffichage) }}</td>
                                     <td v-for="m in 12" :key="m" class="col-mois">
                                         <input type="text" class="form-control form-control-sm text-end"
                                             :value="formatMontant(valeurAfficheeCellule(poste.id, m-1), deviseAffichage)"
@@ -131,12 +119,9 @@
                                 <tr class="total-row total-depenses">
                                     <td class="col-poste fw-bold">TOTAL DÉPENSES</td>
                                     <td class="col-total text-end fw-bold">{{ formatMontant(totalDepensesAffichage, deviseAffichage) }}</td>
-                                    <td v-for="m in 12" :key="m" class="text-end fw-bold col-mois">
-                                        {{ formatMontant(totalDepensesMoisAffichage[m-1], deviseAffichage) }}
-                                    </td>
+                                    <td v-for="m in 12" :key="m" class="text-end fw-bold col-mois">{{ formatMontant(totalDepensesMoisAffichage[m-1], deviseAffichage) }}</td>
                                 </tr>
 
-                                <!-- Section REVENUS -->
                                 <tr class="section-header section-revenus">
                                     <td colspan="14">
                                         <i class="bi bi-cart-plus"></i> REVENUS
@@ -144,12 +129,8 @@
                                     </td>
                                 </tr>
                                 <tr v-for="poste in postesRevenus" :key="poste.id" class="row-poste">
-                                    <td class="fw-bold col-poste">
-                                        <i class="bi bi-dot text-success"></i>{{ poste.nom }}
-                                    </td>
-                                    <td class="text-end fw-bold col-total bg-light">
-                                        {{ formatMontant(totalParPosteAffichage[poste.id], deviseAffichage) }}
-                                    </td>
+                                    <td class="fw-bold col-poste"><i class="bi bi-dot text-success"></i>{{ poste.nom }}</td>
+                                    <td class="text-end fw-bold col-total bg-light">{{ formatMontant(totalParPosteAffichage[poste.id], deviseAffichage) }}</td>
                                     <td v-for="m in 12" :key="m" class="col-mois">
                                         <input type="text" class="form-control form-control-sm text-end"
                                             :value="formatMontant(valeurAfficheeCellule(poste.id, m-1), deviseAffichage)"
@@ -160,17 +141,11 @@
                                 <tr class="total-row total-revenus">
                                     <td class="col-poste fw-bold">TOTAL REVENUS</td>
                                     <td class="col-total text-end fw-bold">{{ formatMontant(totalRevenusAffichage, deviseAffichage) }}</td>
-                                    <td v-for="m in 12" :key="m" class="text-end fw-bold col-mois">
-                                        {{ formatMontant(totalRevenusMoisAffichage[m-1], deviseAffichage) }}
-                                    </td>
+                                    <td v-for="m in 12" :key="m" class="text-end fw-bold col-mois">{{ formatMontant(totalRevenusMoisAffichage[m-1], deviseAffichage) }}</td>
                                 </tr>
-
-                                <!-- Variation de trésorerie -->
                                 <tr class="total-row total-variation">
                                     <td class="col-poste fw-bold">VARIATION TRÉSORERIE</td>
-                                    <td class="col-total text-end fw-bold" :class="soldeTotalAffichage >= 0 ? 'text-success' : 'text-danger'">
-                                        {{ formatMontant(soldeTotalAffichage, deviseAffichage) }}
-                                    </td>
+                                    <td class="col-total text-end fw-bold" :class="soldeTotalAffichage >= 0 ? 'text-success' : 'text-danger'">{{ formatMontant(soldeTotalAffichage, deviseAffichage) }}</td>
                                     <td v-for="m in 12" :key="m" class="text-end fw-bold col-mois"
                                         :class="soldeMoisAffichage[m-1] >= 0 ? 'text-success' : 'text-danger'">
                                         {{ formatMontant(soldeMoisAffichage[m-1], deviseAffichage) }}
@@ -182,7 +157,6 @@
                 </div>
             </div>
 
-            <!-- Modal historique -->
             <div v-if="showHistorique" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
@@ -193,12 +167,7 @@
                         <div class="modal-body">
                             <table class="table table-sm">
                                 <thead>
-                                    <tr>
-                                        <th>Version</th>
-                                        <th>Date</th>
-                                        <th>Utilisateur</th>
-                                        <th>Actions</th>
-                                    </tr>
+                                    <tr><th>Version</th><th>Date</th><th>Utilisateur</th><th>Actions</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="v in versions" :key="v.version">
@@ -215,7 +184,7 @@
             </div>
         </div>
 
-        <!-- ==================== ONGLET SUIVI (DASHBOARD) ==================== -->
+        <!-- ==================== ONGLET SUIVI ==================== -->
         <div v-if="onglet === 'suivi'" class="mt-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Tableau de bord budgétaire</h5>
@@ -239,9 +208,7 @@
                                     <h3 class="mb-1">{{ formatMontant(totalRevenusRealiseAffichage, deviseAffichage) }}</h3>
                                     <small class="text-muted">sur {{ formatMontant(totalRevenusPrevisionAffichage, deviseAffichage) }}</small>
                                 </div>
-                                <div class="kpi-icon" :class="getPourcentageClassRevenus(pourcentageTotalRevenus)">
-                                    <i class="bi bi-graph-up-arrow"></i>
-                                </div>
+                                <div class="kpi-icon" :class="getPourcentageClassRevenus(pourcentageTotalRevenus)"><i class="bi bi-graph-up-arrow"></i></div>
                             </div>
                             <div class="progress mt-3" style="height: 8px;">
                                 <div class="progress-bar" :class="getBarClassRevenus(pourcentageTotalRevenus)"
@@ -260,9 +227,7 @@
                                     <h3 class="mb-1">{{ formatMontant(totalDepensesRealiseAffichage, deviseAffichage) }}</h3>
                                     <small class="text-muted">sur {{ formatMontant(totalDepensesPrevisionAffichage, deviseAffichage) }}</small>
                                 </div>
-                                <div class="kpi-icon" :class="getPourcentageClassDepenses(pourcentageTotalDepenses)">
-                                    <i class="bi bi-cash-coin"></i>
-                                </div>
+                                <div class="kpi-icon" :class="getPourcentageClassDepenses(pourcentageTotalDepenses)"><i class="bi bi-cash-coin"></i></div>
                             </div>
                             <div class="progress mt-3" style="height: 8px;">
                                 <div class="progress-bar" :class="getBarClassDepenses(pourcentageTotalDepenses)"
@@ -278,14 +243,10 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <h6 class="text-muted mb-2">Variation de trésorerie</h6>
-                                    <h3 class="mb-1" :class="variationTotaleAffichage >= 0 ? 'text-success' : 'text-danger'">
-                                        {{ formatMontant(variationTotaleAffichage, deviseAffichage) }}
-                                    </h3>
+                                    <h3 class="mb-1" :class="variationTotaleAffichage >= 0 ? 'text-success' : 'text-danger'">{{ formatMontant(variationTotaleAffichage, deviseAffichage) }}</h3>
                                     <small class="text-muted">Prévu : {{ formatMontant(variationTotalePrevue, deviseAffichage) }}</small>
                                 </div>
-                                <div class="kpi-icon" :class="variationTotaleAffichage >= 0 ? 'bg-success text-white' : 'bg-danger text-white'">
-                                    <i class="bi bi-wallet2"></i>
-                                </div>
+                                <div class="kpi-icon" :class="variationTotaleAffichage >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"><i class="bi bi-wallet2"></i></div>
                             </div>
                         </div>
                     </div>
@@ -296,14 +257,10 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <h6 class="text-muted mb-2">Postes en dépassement</h6>
-                                    <h3 class="mb-1" :class="postesEnDepassement.length > 0 ? 'text-danger' : 'text-success'">
-                                        {{ postesEnDepassement.length }}
-                                    </h3>
+                                    <h3 class="mb-1" :class="postesEnDepassement.length > 0 ? 'text-danger' : 'text-success'">{{ postesEnDepassement.length }}</h3>
                                     <small class="text-muted">sur {{ postesBudgetaires.length }} postes</small>
                                 </div>
-                                <div class="kpi-icon" :class="postesEnDepassement.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                </div>
+                                <div class="kpi-icon" :class="postesEnDepassement.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'"><i class="bi bi-exclamation-triangle"></i></div>
                             </div>
                         </div>
                     </div>
@@ -314,17 +271,13 @@
                 <div class="col-md-6 mb-3">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-graph-up"></i> Évolution du chiffre d'affaires</div>
-                        <div class="card-body">
-                            <div class="chart-wrapper"><canvas id="chartCA"></canvas></div>
-                        </div>
+                        <div class="card-body"><div class="chart-wrapper"><canvas id="chartCA"></canvas></div></div>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
                     <div class="card h-100">
                         <div class="card-header"><i class="bi bi-graph-down"></i> Évolution des dépenses</div>
-                        <div class="card-body">
-                            <div class="chart-wrapper"><canvas id="chartDepenses"></canvas></div>
-                        </div>
+                        <div class="card-body"><div class="chart-wrapper"><canvas id="chartDepenses"></canvas></div></div>
                     </div>
                 </div>
             </div>
@@ -343,8 +296,7 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Type</th>
-                                    <th>Poste</th>
+                                    <th>Type</th><th>Poste</th>
                                     <th class="text-end">Prévu annuel</th>
                                     <th class="text-end">Réalisé annuel</th>
                                     <th class="text-end">Écart</th>
@@ -356,12 +308,8 @@
                                 <template v-for="poste in postesBudgetaires" :key="poste.id">
                                     <tr>
                                         <td>
-                                            <span v-if="poste.type === 'entree'" class="badge bg-success">
-                                                <i class="bi bi-arrow-up"></i> Revenu
-                                            </span>
-                                            <span v-else class="badge bg-warning text-dark">
-                                                <i class="bi bi-arrow-down"></i> Dépense
-                                            </span>
+                                            <span v-if="poste.type === 'entree'" class="badge bg-success"><i class="bi bi-arrow-up"></i> Revenu</span>
+                                            <span v-else class="badge bg-warning text-dark"><i class="bi bi-arrow-down"></i> Dépense</span>
                                         </td>
                                         <td class="fw-bold">{{ poste.nom }}</td>
                                         <td class="text-end">{{ formatMontant(totalPrevisionParPoste[poste.id] || 0, deviseAffichage) }}</td>
@@ -389,7 +337,7 @@
             </div>
         </div>
 
-        <!-- Modal détail mensuel d'un poste -->
+        <!-- Modal détail poste -->
         <div v-if="posteEnDetail" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -404,21 +352,14 @@
                     <div class="modal-body p-0">
                         <table class="table table-sm mb-0">
                             <thead class="table-light">
-                                <tr>
-                                    <th>Mois</th>
-                                    <th class="text-end">Prévu</th>
-                                    <th class="text-end">Réalisé</th>
-                                    <th class="text-end">Écart</th>
-                                    <th class="text-center">%</th>
-                                </tr>
+                                <tr><th>Mois</th><th class="text-end">Prévu</th><th class="text-end">Réalisé</th><th class="text-end">Écart</th><th class="text-center">%</th></tr>
                             </thead>
                             <tbody>
                                 <tr v-for="(nom, idx) in moisNomsComplets" :key="idx">
                                     <td>{{ nom }}</td>
                                     <td class="text-end">{{ formatMontant(previsionParPosteMois[posteEnDetail.id]?.[idx] || 0, deviseAffichage) }}</td>
                                     <td class="text-end">{{ formatMontant(realiseParPosteMois[posteEnDetail.id]?.[idx] || 0, deviseAffichage) }}</td>
-                                    <td class="text-end"
-                                        :class="getEcartClass(posteEnDetail, realiseParPosteMois[posteEnDetail.id]?.[idx], previsionParPosteMois[posteEnDetail.id]?.[idx])">
+                                    <td class="text-end" :class="getEcartClass(posteEnDetail, realiseParPosteMois[posteEnDetail.id]?.[idx], previsionParPosteMois[posteEnDetail.id]?.[idx])">
                                         {{ formatMontant((realiseParPosteMois[posteEnDetail.id]?.[idx] || 0) - (previsionParPosteMois[posteEnDetail.id]?.[idx] || 0), deviseAffichage) }}
                                     </td>
                                     <td class="text-center">
@@ -443,18 +384,16 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" @click="posteEnDetail = null">Fermer</button>
-                    </div>
+                    <div class="modal-footer"><button class="btn btn-secondary" @click="posteEnDetail = null">Fermer</button></div>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== ONGLET TRÉSORERIE (COMBINÉE) ==================== -->
+        <!-- ==================== ONGLET TRÉSORERIE ==================== -->
         <div v-if="onglet === 'tresorerie'" class="mt-3">
             <div class="card mb-3">
                 <div class="card-header">
-                    <i class="bi bi-cash-stack"></i> Trésorerie : réalisée + prévisionnelle
+                    <i class="bi bi-cash-stack"></i> Trésorerie combinée : passé (réel) + futur (budget)
                 </div>
                 <div class="card-body">
                     <div class="row mb-3 align-items-end">
@@ -473,99 +412,128 @@
                                     @input="formatInputBudget($event)"
                                     @blur="updateSoldeInitial($event.target.value)">
                                 <button class="btn btn-outline-secondary" type="button"
-                                    @click="modeManuelSoldeInitial = !modeManuelSoldeInitial"
-                                    :title="modeManuelSoldeInitial ? 'Revenir au solde calculé automatiquement' : 'Définir manuellement'">
+                                    @click="modeManuelSoldeInitial = !modeManuelSoldeInitial">
                                     <i :class="modeManuelSoldeInitial ? 'bi bi-arrow-counterclockwise' : 'bi bi-pencil'"></i>
                                 </button>
                             </div>
-                            <small class="text-muted" v-if="modeManuelSoldeInitial">
-                                Valeur saisie manuellement
-                            </small>
-                            <small class="text-muted" v-else-if="soldeInitialAutoCalcule !== null">
-                                Solde calculé au 31/12/{{ anneeTreso-1 }}
-                            </small>
+                            <small class="text-muted" v-if="modeManuelSoldeInitial">Valeur saisie manuellement</small>
+                            <small class="text-muted" v-else-if="soldeInitialAutoCalcule !== null">Solde calculé au 31/12/{{ anneeTreso-1 }}</small>
                             <div v-if="messageSoldeInitial" class="text-warning mt-1">
                                 <i class="bi bi-exclamation-triangle"></i> {{ messageSoldeInitial }}
                             </div>
                         </div>
-                        <div class="col-md-4 d-flex gap-2">
+                        <div class="col-md-4 d-flex gap-2 align-items-center">
                             <button class="btn btn-outline-primary" @click="recalculerSoldeInitial">
                                 <i class="bi bi-arrow-repeat"></i> Recalculer
                             </button>
-                            <span class="badge bg-success align-self-center" v-if="soldeActuel !== null">
-                                Solde actuel : {{ formatMontant(soldeActuel, deviseAffichage) }}
-                            </span>
                         </div>
                     </div>
 
+                    <!-- Cartes indicateurs -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body py-2">
+                                    <small class="text-muted">Solde début d'année</small>
+                                    <h5 class="mb-0 text-primary">{{ formatMontant(soldeInitialTreso, deviseAffichage) }}</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body py-2">
+                                    <small class="text-muted">Solde réel actuel</small>
+                                    <h5 class="mb-0 text-success">
+                                        {{ soldeActuel !== null ? formatMontant(soldeActuel, deviseAffichage) : '—' }}
+                                    </h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body py-2">
+                                    <small class="text-muted">Solde projeté fin d'année</small>
+                                    <h5 class="mb-0 text-info">{{ formatMontant(soldeFinalProjete, deviseAffichage) }}</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card" :class="ecartProjection >= 0 ? 'border-success' : 'border-danger'">
+                                <div class="card-body py-2">
+                                    <small class="text-muted">Écart vs budget initial</small>
+                                    <h5 class="mb-0" :class="ecartProjection >= 0 ? 'text-success' : 'text-danger'">
+                                        {{ formatMontant(ecartProjection, deviseAffichage) }}
+                                        <small class="text-muted fs-6 ms-1">
+                                            ({{ ecartProjection >= 0 ? 'meilleur' : 'moins bon' }})
+                                        </small>
+                                    </h5>
+                                    <small class="text-muted">
+                                        Projeté : {{ formatMontant(soldeFinalProjete, deviseAffichage) }}
+                                        · Budget : {{ formatMontant(soldeFinalBudgetPur, deviseAffichage) }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Graphique -->
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <div class="chart-wrapper" style="height: 300px;">
+                            <div class="chart-wrapper" style="height: 350px;">
                                 <canvas id="chartTresorerie"></canvas>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Tableau combiné -->
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm">
-                            <thead class="table-light">
-                                <tr>
-                                    <th rowspan="2">Mois</th>
-                                    <th colspan="3" class="text-center bg-light">Prévisionnel</th>
-                                    <th colspan="3" class="text-center" style="background-color: #fff3cd;">Réalisé</th>
-                                    <th rowspan="2" class="text-end">Écart</th>
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead>
+                                <tr class="table-light">
+                                    <th rowspan="2" class="align-middle">Mois</th>
+                                    <th colspan="2" class="text-center bg-success text-white">Revenus</th>
+                                    <th colspan="2" class="text-center bg-danger text-white">Dépenses</th>
+                                    <th rowspan="2" class="text-end align-middle">Solde fin</th>
+                                    <th rowspan="2" class="text-end align-middle">Variation solde</th>
                                 </tr>
-                                <tr>
-                                    <th class="text-end">Entrées</th>
-                                    <th class="text-end">Sorties</th>
-                                    <th class="text-end">Solde fin</th>
-                                    <th class="text-end">Entrées</th>
-                                    <th class="text-end">Sorties</th>
-                                    <th class="text-end">Solde fin</th>
+                                <tr class="table-light">
+                                    <th class="text-end">Prévu</th>
+                                    <th class="text-end">Réalisé</th>
+                                    <th class="text-end">Prévu</th>
+                                    <th class="text-end">Réalisé</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(mois, idx) in moisNomsComplets" :key="idx">
-                                    <td>{{ mois }}</td>
-                                    <td class="text-end">{{ formatMontant(soldesTreso[idx]?.prevu?.entrees || 0, deviseAffichage) }}</td>
-                                    <td class="text-end">{{ formatMontant(soldesTreso[idx]?.prevu?.sorties || 0, deviseAffichage) }}</td>
-                                    <td class="text-end fw-bold" :class="(soldesTreso[idx]?.prevu?.fin || 0) >= 0 ? 'text-success' : 'text-danger'">
-                                        {{ formatMontant(soldesTreso[idx]?.prevu?.fin || 0, deviseAffichage) }}
+                                <tr v-for="(mois, idx) in moisNomsComplets" :key="idx"
+                                    :class="soldesTreso[idx]?.statut === 'futur' ? 'table-info' : ''">
+                                    <td>
+                                        {{ mois }}
+                                        <span v-if="soldesTreso[idx]?.statut === 'futur'" class="badge bg-info text-dark ms-1">Projeté</span>
                                     </td>
-                                    <td class="text-end bg-light">
-                                        <span v-if="soldesTreso[idx]?.realise">{{ formatMontant(soldesTreso[idx].realise.entrees, deviseAffichage) }}</span>
-                                        <span v-else class="text-muted">—</span>
-                                    </td>
-                                    <td class="text-end bg-light">
-                                        <span v-if="soldesTreso[idx]?.realise">{{ formatMontant(soldesTreso[idx].realise.sorties, deviseAffichage) }}</span>
-                                        <span v-else class="text-muted">—</span>
-                                    </td>
-                                    <td class="text-end fw-bold bg-light">
-                                        <span v-if="soldesTreso[idx]?.realise"
-                                            :class="soldesTreso[idx].realise.fin >= 0 ? 'text-success' : 'text-danger'">
-                                            {{ formatMontant(soldesTreso[idx].realise.fin, deviseAffichage) }}
+                                    <td class="text-end">{{ formatMontant(soldesTreso[idx]?.flux?.revenusPrevus || 0, deviseAffichage) }}</td>
+                                    <td class="text-end">
+                                        <span v-if="soldesTreso[idx]?.flux?.revenusReels !== null && soldesTreso[idx]?.flux?.revenusReels !== undefined">
+                                            {{ formatMontant(soldesTreso[idx].flux.revenusReels, deviseAffichage) }}
                                         </span>
                                         <span v-else class="text-muted">—</span>
                                     </td>
-                                    <td class="text-end fw-bold">
-                                        <span v-if="soldesTreso[idx]?.ecart !== null && soldesTreso[idx]?.ecart !== undefined"
-                                            :class="soldesTreso[idx].ecart >= 0 ? 'text-success' : 'text-danger'">
-                                            {{ formatMontant(soldesTreso[idx].ecart, deviseAffichage) }}
+                                    <td class="text-end">{{ formatMontant(soldesTreso[idx]?.flux?.depensesPrevues || 0, deviseAffichage) }}</td>
+                                    <td class="text-end">
+                                        <span v-if="soldesTreso[idx]?.flux?.depensesReelles !== null && soldesTreso[idx]?.flux?.depensesReelles !== undefined">
+                                            {{ formatMontant(soldesTreso[idx].flux.depensesReelles, deviseAffichage) }}
                                         </span>
                                         <span v-else class="text-muted">—</span>
+                                    </td>
+                                    <td class="text-end fw-bold"
+                                        :class="(soldesTreso[idx]?.soldeContinu || 0) >= 0 ? 'text-success' : 'text-danger'">
+                                        {{ formatMontant(soldesTreso[idx]?.soldeContinu || 0, deviseAffichage) }}
+                                    </td>
+                                    <td class="text-end"
+                                        :class="((soldesTreso[idx]?.soldeContinu || 0) - (soldesTreso[idx]?.soldeDebut || 0)) >= 0 ? 'text-success' : 'text-danger'">
+                                        {{ formatMontant((soldesTreso[idx]?.soldeContinu || 0) - (soldesTreso[idx]?.soldeDebut || 0), deviseAffichage) }}
                                     </td>
                                 </tr>
                             </tbody>
-                            <tfoot>
-                                <tr class="table-dark fw-bold">
-                                    <td>Solde final année</td>
-                                    <td colspan="2" class="text-end">Prévu</td>
-                                    <td class="text-end">{{ formatMontant(soldeFinalPrevu, deviseAffichage) }}</td>
-                                    <td colspan="2" class="text-end">Réalisé</td>
-                                    <td class="text-end">{{ soldeActuel !== null ? formatMontant(soldeActuel, deviseAffichage) : '—' }}</td>
-                                    <td class="text-end">{{ soldeActuel !== null ? formatMontant(soldeActuel - soldeFinalPrevu, deviseAffichage) : '—' }}</td>
-                                </tr>
-                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -633,22 +601,39 @@ export default {
             const taux = this.tauxMensuels[0] || 2500;
             return baseCDF / taux;
         },
-        soldeFinalPrevu() {
-            if (!this.soldesTreso.length) return 0;
-            const last = this.soldesTreso[this.soldesTreso.length - 1];
-            return last?.prevu?.fin || 0;
-        },
         soldeActuel() {
+            if (!this.soldesTreso.length) return null;
             const maintenant = new Date();
             const moisActuel = maintenant.getMonth();
             const anneeActuelle = maintenant.getFullYear();
             if (this.anneeTreso > anneeActuelle) return null;
-            if (this.anneeTreso === anneeActuelle) {
-                const s = this.soldesTreso[moisActuel];
-                return s?.realise?.fin || null;
+            // Dernier mois passé avec des données réelles
+            for (let i = 11; i >= 0; i--) {
+                const s = this.soldesTreso[i];
+                if (s?.flux?.revenusReels !== null && s?.flux?.revenusReels !== undefined) {
+                    return s.soldeContinu;
+                }
             }
+            return this.soldeInitialTreso;
+        },
+        soldeFinalProjete() {
+            if (!this.soldesTreso.length) return 0;
             const last = this.soldesTreso[this.soldesTreso.length - 1];
-            return last?.realise?.fin || null;
+            return last?.soldeContinu || 0;
+        },
+        soldeFinalBudgetPur() {
+            // Solde théorique si le budget pur avait été suivi dès le début
+            let solde = this.soldeInitialTreso;
+            for (let m = 0; m < 12; m++) {
+                const s = this.soldesTreso[m];
+                if (s?.flux) {
+                    solde += s.flux.revenusPrevus - s.flux.depensesPrevues;
+                }
+            }
+            return solde;
+        },
+        ecartProjection() {
+            return this.soldeFinalProjete - this.soldeFinalBudgetPur;
         },
 
         totalDepensesMoisAffichage() {
@@ -679,9 +664,8 @@ export default {
             const totals = {};
             for (let p of this.postesBudgetaires) {
                 const arrCDF = this.budgetData[p.id] || Array(12).fill(0);
-                if (this.deviseAffichage === 'CDF') {
-                    totals[p.id] = arrCDF.reduce((a, b) => a + b, 0);
-                } else {
+                if (this.deviseAffichage === 'CDF') totals[p.id] = arrCDF.reduce((a, b) => a + b, 0);
+                else {
                     let sum = 0;
                     for (let i = 0; i < 12; i++) sum += arrCDF[i] / (this.tauxMensuels[i] || 2500);
                     totals[p.id] = sum;
@@ -776,13 +760,9 @@ export default {
         },
         onglet(val) {
             if (val === 'suivi') {
-                this.$nextTick(() => {
-                    setTimeout(() => this.renderSuiviCharts(), 150);
-                });
+                this.$nextTick(() => setTimeout(() => this.renderSuiviCharts(), 150));
             } else if (val === 'tresorerie') {
-                this.$nextTick(() => {
-                    setTimeout(() => this.renderChartTresorerie(), 150);
-                });
+                this.$nextTick(() => setTimeout(() => this.renderChartTresorerie(), 150));
             }
         }
     },
@@ -981,7 +961,6 @@ export default {
 
             for (let m = 0; m < 12; m++) {
                 const { caisse, banque, manuelles } = await getMouvementsBudget(this.anneeSuivi, m + 1);
-
                 for (const mvt of caisse) {
                     const poste = postesAnnee.find(p => p.nom === mvt.poste);
                     if (poste) {
@@ -1079,40 +1058,100 @@ export default {
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            const prevuData = this.soldesTreso.map(s => s?.prevu?.fin || 0);
-            const realiseData = this.soldesTreso.map(s => s?.realise?.fin ?? null);
+            const soldeData = this.soldesTreso.map(s => s.soldeContinu);
+            const revenusPrevusData = this.soldesTreso.map(s => s.flux.revenusPrevus);
+            const depensesPrevuesData = this.soldesTreso.map(s => s.flux.depensesPrevues);
+            const revenusReelsData = this.soldesTreso.map(s => s.flux.revenusReels ?? 0);
+            const depensesReellesData = this.soldesTreso.map(s => s.flux.depensesReelles ?? 0);
 
             try {
                 this.chartTresorerie = new Chart(ctx, {
-                    type: 'line',
+                    type: 'bar',
                     data: {
                         labels: this.moisNoms,
                         datasets: [
                             {
-                                label: 'Solde prévu (budget)',
-                                data: prevuData,
+                                type: 'line',
+                                label: 'Solde (réel + projeté)',
+                                data: soldeData,
                                 borderColor: '#0d6efd',
                                 backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                                borderDash: [5, 5],
-                                tension: 0.2
+                                borderWidth: 3,
+                                tension: 0.2,
+                                pointRadius: 5,
+                                pointBackgroundColor: '#0d6efd',
+                                yAxisID: 'y-solde',
+                                order: 0
                             },
                             {
-                                label: 'Solde réel',
-                                data: realiseData,
+                                type: 'bar',
+                                label: 'Revenus prévus',
+                                data: revenusPrevusData,
+                                backgroundColor: 'rgba(40, 167, 69, 0.25)',
                                 borderColor: '#28a745',
-                                backgroundColor: 'rgba(40, 167, 69, 0.15)',
-                                fill: true,
-                                spanGaps: false,
-                                tension: 0.2
+                                borderWidth: 1,
+                                yAxisID: 'y-flux',
+                                order: 2
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Revenus réalisés',
+                                data: revenusReelsData,
+                                backgroundColor: 'rgba(40, 167, 69, 0.85)',
+                                yAxisID: 'y-flux',
+                                order: 1
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Dépenses prévues',
+                                data: depensesPrevuesData,
+                                backgroundColor: 'rgba(237, 28, 36, 0.25)',
+                                borderColor: '#ED1C24',
+                                borderWidth: 1,
+                                yAxisID: 'y-flux',
+                                order: 2
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Dépenses réalisées',
+                                data: depensesReellesData,
+                                backgroundColor: 'rgba(237, 28, 36, 0.85)',
+                                yAxisID: 'y-flux',
+                                order: 1
                             }
                         ]
                     },
                     options: {
-                        responsive: true, maintainAspectRatio: false,
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { intersect: false, mode: 'index' },
                         plugins: {
-                            tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + (c.raw !== null ? this.formatMontant(c.raw, this.deviseAffichage) : '—') } }
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) => {
+                                        const value = c.raw;
+                                        return c.dataset.label + ' : ' + this.formatMontant(value, this.deviseAffichage) + ' ' + this.deviseAffichage;
+                                    }
+                                }
+                            },
+                            legend: { position: 'top' }
                         },
-                        scales: { y: { ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) } } }
+                        scales: {
+                            'y-flux': {
+                                type: 'linear',
+                                position: 'left',
+                                title: { display: true, text: 'Flux (entrées / sorties) - ' + this.deviseAffichage },
+                                ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) },
+                                grid: { drawOnChartArea: false }
+                            },
+                            'y-solde': {
+                                type: 'linear',
+                                position: 'right',
+                                title: { display: true, text: 'Solde - ' + this.deviseAffichage },
+                                ticks: { callback: (v) => this.formatMontant(v, this.deviseAffichage) },
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                            }
+                        }
                     }
                 });
             } catch (e) { console.warn(e); }
@@ -1137,38 +1176,30 @@ export default {
             const anneePrec = annee - 1;
             const dateDebut = `${anneePrec}-01-01`;
             const dateFin = `${anneePrec}-12-31`;
-
             const semainesNonCloturees = await db.semaines_caisse
                 .where('dateFin').between(dateDebut, dateFin, true, true)
                 .filter(s => !s.estCloturee)
                 .count();
-            if (semainesNonCloturees > 0) {
-                return { ok: false, raison: `Il reste des semaines non clôturées en ${anneePrec}.` };
-            }
+            if (semainesNonCloturees > 0) return { ok: false, raison: `Il reste des semaines non clôturées en ${anneePrec}.` };
             const mouvementsAJustifier = await db.mouvementsCaisse
                 .where('date').between(dateDebut, dateFin, true, true)
                 .filter(m => m.aJustifier === true && !m.annule)
                 .count();
-            if (mouvementsAJustifier > 0) {
-                return { ok: false, raison: `Il reste des écritures "à justifier" non traitées en ${anneePrec}.` };
-            }
+            if (mouvementsAJustifier > 0) return { ok: false, raison: `Il reste des écritures "à justifier" en ${anneePrec}.` };
             return { ok: true };
         },
         async calculerSoldeInitialAuto(annee) {
             const anneePrecedente = annee - 1;
             const dateFinAnneePrec = `${anneePrecedente}-12-31`;
             const dateDebutAnnee = `${annee}-01-01`;
-
             const verif = await this.verifierClotureEtJustificatifs(annee);
             if (!verif.ok) {
                 this.messageSoldeInitial = verif.raison;
                 return null;
             }
-
             const caisses = await db.caisses.toArray();
             const comptes = await db.comptes_bancaires.toArray();
             let totalCDF = 0, totalUSD = 0, auMoinsUneCaisse = false;
-
             const tauxDebutAnnee = await this.getTauxPourDate(dateDebutAnnee);
 
             for (let caisse of caisses) {
@@ -1185,23 +1216,19 @@ export default {
                 totalCDF += soldeCDF;
                 totalUSD += soldeUSD;
             }
-
             for (let compte of comptes) {
                 const mouvements = await db.mouvements_bancaires
                     .where('compte_id').equals(compte.id)
                     .filter(m => m.date_operation <= dateFinAnneePrec && m.statut === 'valide')
                     .toArray();
                 let solde = compte.solde_initial || 0;
-                for (let mvt of mouvements) {
-                    solde += (mvt.type === 'credit' ? mvt.montant : -mvt.montant);
-                }
+                for (let mvt of mouvements) solde += (mvt.type === 'credit' ? mvt.montant : -mvt.montant);
                 if (solde !== 0) auMoinsUneCaisse = true;
                 if (compte.devise === 'CDF') totalCDF += solde;
                 else totalUSD += solde;
             }
-
             if (!auMoinsUneCaisse) {
-                this.messageSoldeInitial = `Aucune caisse avec un solde au 31/12/${anneePrecedente}. Saisir manuellement.`;
+                this.messageSoldeInitial = `Aucun solde au 31/12/${anneePrecedente}. Saisir manuellement.`;
                 return null;
             }
             this.messageSoldeInitial = '';
@@ -1251,12 +1278,12 @@ export default {
             const moisActuel = aujourdhui.getMonth();
             const anneeActuelle = aujourdhui.getFullYear();
 
-            let soldePrevu = this.soldeInitialTreso;
-            let soldeReel = this.soldeInitialTreso;
             const nouveauxSoldes = [];
+            let soldeCourant = this.soldeInitialTreso;
 
+            // Étape 1 : Calculer les flux prévus (budget) pour chaque mois
+            const fluxPrevus = [];
             for (let m = 0; m < 12; m++) {
-                // Prévisionnel (à partir du budget)
                 let entreesPrev = 0, sortiesPrev = 0;
                 for (let p of postesAnnee) {
                     const montantCDF = budgetData[p.id]?.[m] || 0;
@@ -1265,55 +1292,71 @@ export default {
                     if (p.type === 'entree') entreesPrev += montantAff;
                     else sortiesPrev += montantAff;
                 }
-                const debutPrevu = soldePrevu;
-                const finPrevu = debutPrevu + entreesPrev - sortiesPrev;
+                fluxPrevus.push({ entrees: entreesPrev, sorties: sortiesPrev });
+            }
 
-                // Réalisé (uniquement pour les mois passés ou le mois courant)
-                let realise = null;
-                if (this.anneeTreso < anneeActuelle || (this.anneeTreso === anneeActuelle && m <= moisActuel)) {
-                    let entreesReal = 0, sortiesReal = 0;
-                    for (let p of postesAnnee) {
-                        const realisationsCaisse = mouvementsCaisse.filter(mvt => {
-                            const d = new Date(mvt.date);
-                            return d.getFullYear() === this.anneeTreso && d.getMonth() === m && mvt.posteBudgetaire === p.nom;
-                        });
-                        const realisationsBanque = mouvementsBanque.filter(mvt => {
-                            const d = new Date(mvt.date_operation);
-                            return d.getFullYear() === this.anneeTreso && d.getMonth() === m && mvt.poste_id === p.id;
-                        });
-                        for (let r of realisationsCaisse) {
-                            let montant = r.montant;
-                            if (r.devise !== this.deviseAffichage) {
-                                if (this.deviseAffichage === 'USD') montant = r.montant / tauxParMois[m];
-                                else montant = r.montant * tauxParMois[m];
-                            }
-                            if (r.type === 'entree') entreesReal += montant;
-                            else sortiesReal += montant;
+            // Étape 2 : Calculer les flux réels (mouvements) pour les mois passés et courants
+            const fluxReels = [];
+            for (let m = 0; m < 12; m++) {
+                const estPasse = this.anneeTreso < anneeActuelle || (this.anneeTreso === anneeActuelle && m <= moisActuel);
+                if (!estPasse) { fluxReels.push(null); continue; }
+
+                let entrees = 0, sorties = 0;
+                for (let p of postesAnnee) {
+                    const mvtsCaisseMois = mouvementsCaisse.filter(mvt => {
+                        const d = new Date(mvt.date);
+                        return d.getFullYear() === this.anneeTreso && d.getMonth() === m && mvt.posteBudgetaire === p.nom;
+                    });
+                    const mvtsBanqueMois = mouvementsBanque.filter(mvt => {
+                        const d = new Date(mvt.date_operation);
+                        return d.getFullYear() === this.anneeTreso && d.getMonth() === m && mvt.poste_id === p.id;
+                    });
+                    for (let r of mvtsCaisseMois) {
+                        let montant = r.montant;
+                        if (r.devise !== this.deviseAffichage) {
+                            if (this.deviseAffichage === 'USD') montant = r.montant / tauxParMois[m];
+                            else montant = r.montant * tauxParMois[m];
                         }
-                        for (let r of realisationsBanque) {
-                            let montant = r.montant;
-                            if (r.devise !== this.deviseAffichage) {
-                                if (this.deviseAffichage === 'USD') montant = r.montant / tauxParMois[m];
-                                else montant = r.montant * tauxParMois[m];
-                            }
-                            if (r.type === 'credit') entreesReal += montant;
-                            else sortiesReal += montant;
-                        }
+                        if (r.type === 'entree') entrees += montant;
+                        else sorties += montant;
                     }
-                    const debutReal = soldeReel;
-                    const finReal = debutReal + entreesReal - sortiesReal;
-                    realise = { debut: debutReal, entrees: entreesReal, sorties: sortiesReal, fin: finReal };
-                    soldeReel = finReal;
+                    for (let r of mvtsBanqueMois) {
+                        let montant = r.montant;
+                        if (r.devise !== this.deviseAffichage) {
+                            if (this.deviseAffichage === 'USD') montant = r.montant / tauxParMois[m];
+                            else montant = r.montant * tauxParMois[m];
+                        }
+                        if (r.type === 'credit') entrees += montant;
+                        else sorties += montant;
+                    }
                 }
+                fluxReels.push({ entrees, sorties });
+            }
 
-                const ecart = realise ? (realise.fin - finPrevu) : null;
+            // Étape 3 : Construire la courbe continue
+            // - Mois passés + courant : flux réels
+            // - Mois futurs : flux prévus
+            let soldeContinu = this.soldeInitialTreso;
+            for (let m = 0; m < 12; m++) {
+                const estPasse = this.anneeTreso < anneeActuelle || (this.anneeTreso === anneeActuelle && m <= moisActuel);
+                const flux = estPasse ? fluxReels[m] : fluxPrevus[m];
+
+                const debut = soldeContinu;
+                const fin = debut + flux.entrees - flux.sorties;
+                soldeContinu = fin;
 
                 nouveauxSoldes.push({
-                    prevu: { debut: debutPrevu, entrees: entreesPrev, sorties: sortiesPrev, fin: finPrevu },
-                    realise: realise,
-                    ecart: ecart
+                    mois: m,
+                    statut: estPasse ? 'passe' : 'futur',
+                    flux: {
+                        revenusPrevus: fluxPrevus[m].entrees,
+                        depensesPrevues: fluxPrevus[m].sorties,
+                        revenusReels: estPasse ? fluxReels[m].entrees : null,
+                        depensesReelles: estPasse ? fluxReels[m].sorties : null
+                    },
+                    soldeContinu: fin,
+                    soldeDebut: debut
                 });
-                soldePrevu = finPrevu;
             }
             this.soldesTreso = nouveauxSoldes;
             this.$nextTick(() => this.renderChartTresorerie());
@@ -1323,7 +1366,6 @@ export default {
 </script>
 
 <style scoped>
-/* ============ SAISIE BUDGET ============ */
 .budget-table-wrapper {
     max-height: 72vh;
     overflow: auto;
@@ -1331,197 +1373,31 @@ export default {
     border: 1px solid #dee2e6;
     margin: 12px;
 }
-
-.budget-input-table {
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 0.85rem;
-    margin-bottom: 0;
-    width: 100%;
-}
-
-.budget-input-table th,
-.budget-input-table td {
-    vertical-align: middle;
-    padding: 0.35rem 0.4rem;
-    white-space: nowrap;
-    border-color: #e5e5e5;
-}
-
-.budget-input-table .header-row th {
-    background-color: #f1f3f5;
-    font-weight: 600;
-    color: #495057;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    border-bottom: 2px solid #adb5bd;
-}
-
-.col-poste {
-    min-width: 200px;
-    max-width: 200px;
-    position: sticky;
-    left: 0;
-    background-color: inherit;
-    z-index: 4;
-    box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
-    text-align: left;
-}
-
-.col-total {
-    min-width: 110px;
-    max-width: 110px;
-    position: sticky;
-    left: 200px;
-    background-color: inherit;
-    z-index: 4;
-    box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
-}
-
-.col-mois {
-    min-width: 95px;
-    max-width: 95px;
-    text-align: right;
-}
-
-.budget-input-table input.form-control {
-    text-align: right;
-    padding: 0.2rem 0.35rem;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    border: 1px solid transparent;
-    background-color: transparent;
-    transition: border-color 0.15s;
-}
-
-.budget-input-table input.form-control:hover {
-    border-color: #dee2e6;
-    background-color: #fff;
-}
-
-.budget-input-table input.form-control:focus {
-    border-color: #ED1C24;
-    background-color: #fff;
-    box-shadow: 0 0 0 2px rgba(237, 28, 36, 0.1);
-}
-
-/* Ligne taux */
-.row-taux td {
-    background-color: #f8f9fa;
-    font-size: 0.8rem;
-    border-bottom: 2px solid #adb5bd;
-}
-
-.row-taux .col-poste {
-    background-color: #f8f9fa;
-}
-
-.row-taux .col-total {
-    background-color: #f8f9fa;
-}
-
-/* Sections Dépenses / Revenus */
-.section-header td {
-    padding: 0.6rem 0.8rem !important;
-    font-weight: 700;
-    font-size: 0.9rem;
-    letter-spacing: 0.5px;
-}
-
-.section-depenses td {
-    background-color: #fff3cd;
-    color: #856404;
-    border-top: 3px solid #ffc107;
-    border-bottom: 2px solid #ffc107;
-}
-
-.section-revenus td {
-    background-color: #d4edda;
-    color: #155724;
-    border-top: 3px solid #28a745;
-    border-bottom: 2px solid #28a745;
-}
-
-/* Lignes de postes */
-.row-poste:nth-child(even) td {
-    background-color: #fafbfc;
-}
-
-.row-poste:hover td {
-    background-color: #f1f3f5;
-}
-
-/* Lignes totales */
-.total-row td {
-    font-weight: 700;
-    padding: 0.55rem 0.4rem !important;
-    font-size: 0.85rem;
-}
-
-.total-depenses td {
-    background-color: #fff3cd;
-    border-top: 2px solid #ffc107;
-    border-bottom: 2px solid #ffc107;
-    color: #856404;
-}
-
-.total-revenus td {
-    background-color: #d4edda;
-    border-top: 2px solid #28a745;
-    border-bottom: 2px solid #28a745;
-    color: #155724;
-}
-
-.total-variation td {
-    background-color: #cfe2ff;
-    border-top: 2px solid #0d6efd;
-    border-bottom: 2px solid #0d6efd;
-    color: #084298;
-}
-
-/* ============ GRAPHIQUES ============ */
-.chart-wrapper {
-    position: relative;
-    height: 250px;
-    width: 100%;
-}
-
-.chart-wrapper canvas {
-    max-height: 250px !important;
-    max-width: 100% !important;
-}
-
-/* ============ KPI CARDS ============ */
-.kpi-card {
-    border-left: 4px solid #0d6efd;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.kpi-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-}
-
-.kpi-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    background-color: #f8f9fa;
-}
-
-.table thead th {
-    font-weight: 600;
-    color: #495057;
-    font-size: 0.85rem;
-}
-
-.badge {
-    font-weight: 500;
-    padding: 0.35rem 0.6rem;
-}
+.budget-input-table { border-collapse: separate; border-spacing: 0; font-size: 0.85rem; margin-bottom: 0; width: 100%; }
+.budget-input-table th, .budget-input-table td { vertical-align: middle; padding: 0.35rem 0.4rem; white-space: nowrap; border-color: #e5e5e5; }
+.budget-input-table .header-row th { background-color: #f1f3f5; font-weight: 600; color: #495057; position: sticky; top: 0; z-index: 5; border-bottom: 2px solid #adb5bd; }
+.col-poste { min-width: 200px; max-width: 200px; position: sticky; left: 0; background-color: inherit; z-index: 4; box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08); text-align: left; }
+.col-total { min-width: 110px; max-width: 110px; position: sticky; left: 200px; background-color: inherit; z-index: 4; box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08); }
+.col-mois { min-width: 95px; max-width: 95px; text-align: right; }
+.budget-input-table input.form-control { text-align: right; padding: 0.2rem 0.35rem; font-size: 0.8rem; border-radius: 4px; border: 1px solid transparent; background-color: transparent; transition: border-color 0.15s; }
+.budget-input-table input.form-control:hover { border-color: #dee2e6; background-color: #fff; }
+.budget-input-table input.form-control:focus { border-color: #ED1C24; background-color: #fff; box-shadow: 0 0 0 2px rgba(237, 28, 36, 0.1); }
+.row-taux td { background-color: #f8f9fa; font-size: 0.8rem; border-bottom: 2px solid #adb5bd; }
+.row-taux .col-poste, .row-taux .col-total { background-color: #f8f9fa; }
+.section-header td { padding: 0.6rem 0.8rem !important; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.5px; }
+.section-depenses td { background-color: #fff3cd; color: #856404; border-top: 3px solid #ffc107; border-bottom: 2px solid #ffc107; }
+.section-revenus td { background-color: #d4edda; color: #155724; border-top: 3px solid #28a745; border-bottom: 2px solid #28a745; }
+.row-poste:nth-child(even) td { background-color: #fafbfc; }
+.row-poste:hover td { background-color: #f1f3f5; }
+.total-row td { font-weight: 700; padding: 0.55rem 0.4rem !important; font-size: 0.85rem; }
+.total-depenses td { background-color: #fff3cd; border-top: 2px solid #ffc107; border-bottom: 2px solid #ffc107; color: #856404; }
+.total-revenus td { background-color: #d4edda; border-top: 2px solid #28a745; border-bottom: 2px solid #28a745; color: #155724; }
+.total-variation td { background-color: #cfe2ff; border-top: 2px solid #0d6efd; border-bottom: 2px solid #0d6efd; color: #084298; }
+.chart-wrapper { position: relative; height: 250px; width: 100%; }
+.chart-wrapper canvas { max-height: 250px !important; max-width: 100% !important; }
+.kpi-card { border-left: 4px solid #0d6efd; transition: transform 0.2s, box-shadow 0.2s; }
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); }
+.kpi-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background-color: #f8f9fa; }
+.table thead th { font-weight: 600; color: #495057; font-size: 0.85rem; }
+.badge { font-weight: 500; padding: 0.35rem 0.6rem; }
 </style>
