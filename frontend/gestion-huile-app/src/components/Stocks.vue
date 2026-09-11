@@ -870,18 +870,8 @@ export default {
     reconditionnementsFiltres() {
       return this.reconditionnements.filter(r => r.siteId === this.siteActif);
     },
-    conditionnementsDisponiblesPourLot(lotId) {
-      if (!this.transfert.siteSource || !lotId) return [];
-      const stocks = this.stocks.filter(s => s.siteId === this.transfert.siteSource && s.lotId === lotId && s.quantite > 0);
-      return stocks.map(s => {
-        const cond = this.conditionnements.find(c => c.id === s.conditionnementId);
-        return { id: s.conditionnementId, nom: cond ? cond.nom : '-', max: s.quantite };
-      });
-    },
-    quantiteMax(lotId, conditionnementId) {
-      const stock = this.stocks.find(s => s.siteId === this.transfert.siteSource && s.lotId === lotId && s.conditionnementId === conditionnementId);
-      return stock ? stock.quantite : 0;
-    },
+
+
     conditionnementsSource() {
       if (!this.reconditionnement.siteId || !this.reconditionnement.lotId) return [];
       const stocks = this.stocks.filter(s => s.siteId === this.reconditionnement.siteId && s.lotId === this.reconditionnement.lotId && s.quantite > 0);
@@ -900,13 +890,7 @@ export default {
       if (!sourceCond) return [];
       return this.conditionnements.filter(c => c.capaciteL <= sourceCond.capaciteL);
     },
-    conditionnementsPourInventaire(lotId) {
-      if (!this.inventaire.siteId) return [];
-      if (lotId === '__new__') return this.conditionnements;
-      const stocks = this.stocks.filter(s => s.siteId === this.inventaire.siteId && s.lotId === lotId);
-      const condIds = stocks.map(s => s.conditionnementId);
-      return this.conditionnements.filter(c => condIds.includes(c.id));
-    },
+    
     quantiteManquante() {
       return this.transfertLignes.some(l => l.quantiteRecue < l.quantite);
     },
@@ -1162,6 +1146,14 @@ export default {
         alert('Transfert créé');
       } catch (error) { console.error(error); alert('Erreur'); }
     },
+    conditionnementsDisponiblesPourLot(lotId) {
+      if (!this.transfert.siteSource || !lotId) return [];
+      const stocks = this.stocks.filter(s => s.siteId === this.transfert.siteSource && s.lotId === lotId && s.quantite > 0);
+      return stocks.map(s => {
+        const cond = this.conditionnements.find(c => c.id === s.conditionnementId);
+        return { id: s.conditionnementId, nom: cond ? cond.nom : '-', max: s.quantite };
+      });
+    },
     async annulerTransfertBackend(id) {
       if (!confirm('Annuler ce transfert ?')) return;
       try {
@@ -1179,6 +1171,13 @@ export default {
         .map(l => ({ ...l, quantiteRecue: l.quantiteRecue || l.quantite }));
       this.raisonEcart = '';
       this.showConfirmationModal = true;
+    },
+    conditionnementsPourInventaire(lotId) {
+      if (!this.inventaire.siteId) return [];
+      if (lotId === '__new__') return this.conditionnements;
+      const stocks = this.stocks.filter(s => s.siteId === this.inventaire.siteId && s.lotId === lotId);
+      const condIds = stocks.map(s => s.conditionnementId);
+      return this.conditionnements.filter(c => condIds.includes(c.id));
     },
     async confirmerTransfert() {
       // ... remplace typeContenantId par conditionnementId dans la mise à jour des stocks
@@ -1315,6 +1314,11 @@ export default {
         await apiService.ajouter('stocks', { siteId, lotId, conditionnementId, quantite: delta });
       }
       // vérification seuil notif (optionnel)
+    },
+
+    quantiteMax(lotId, conditionnementId) {
+      const stock = this.stocks.find(s => s.siteId === this.transfert.siteSource && s.lotId === lotId && s.conditionnementId === conditionnementId);
+      return stock ? stock.quantite : 0;
     },
 
     // Détails (modales)

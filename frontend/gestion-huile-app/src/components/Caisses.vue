@@ -2,7 +2,6 @@
   <div class="container-fluid">
     <h2 class="mb-4" style="color: #ED1C24;">Gestion des caisses</h2>
 
-    <!-- === Gestion des alertes d'accès aux caisses === -->
     <div v-if="chargementEnCours" class="alert alert-info">
       <i class="bi bi-hourglass-split"></i> Chargement des données...
     </div>
@@ -19,13 +18,11 @@
       <span v-else> Veuillez contacter un administrateur.</span>
     </div>
 
-    <!-- Sélecteurs -->
     <div class="card mb-4" v-else>
       <div class="card-header">
         <i class="bi bi-wallet2"></i> Navigation
       </div>
       <div class="card-body">
-        <!-- Ligne 1 : Sélecteurs + Clôtures -->
         <div class="row align-items-end">
           <div class="col-md-3">
             <label>Caisse principale</label>
@@ -65,7 +62,6 @@
           </div>
         </div>
 
-        <!-- Ligne 2 : Solde actuel + Opérations -->
         <div class="row mt-3 align-items-center" v-if="semaineCourante">
           <div class="col-md-4">
             <div class="card text-white" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
@@ -98,7 +94,6 @@
       </div>
     </div>
 
-    <!-- Onglets -->
     <ul class="nav nav-tabs" v-if="caisseActiveId">
       <li class="nav-item"><a class="nav-link" :class="{ active: onglet === 'mouvements' }" href="#" @click.prevent="onglet = 'mouvements'">Mouvements</a></li>
       <li class="nav-item">
@@ -110,7 +105,6 @@
       <li class="nav-item"><a class="nav-link" :class="{ active: onglet === 'historique' }" href="#" @click.prevent="onglet = 'historique'">Historique des clôtures</a></li>
     </ul>
 
-    <!-- Onglet Mouvements -->
     <div v-show="onglet === 'mouvements'" class="mt-3">
       <div class="row">
         <div class="col-md-6">
@@ -194,7 +188,6 @@
       </div>
     </div>
 
-    <!-- Onglet À justifier -->
     <div v-show="onglet === 'a_justifier'" class="mt-3">
       <div class="table-responsive">
         <table class="table table-hover">
@@ -219,7 +212,6 @@
       </div>
     </div>
 
-    <!-- Onglet Historique des clôtures -->
     <div v-show="onglet === 'historique'" class="mt-3">
       <div class="table-responsive">
         <table class="table table-hover">
@@ -242,10 +234,7 @@
       </div>
     </div>
 
-    <!-- ========== MODALS ========== -->
-
-    <!-- Modal Nouveau mouvement / Modification -->
-        <div v-if="showMouvementModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
+    <div v-if="showMouvementModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
@@ -318,7 +307,6 @@
                 <i class="bi bi-info-circle"></i> Cette écriture devra être justifiée ultérieurement depuis l'onglet "À justifier".
               </div>
 
-              <!-- Bloc conditionnel affectation stock -->
               <div v-if="mouvementForm.affectationStock">
                 <div v-if="mouvementForm.affectationStock === 'carburant'" class="row">
                   <div class="col-md-4 mb-3">
@@ -340,29 +328,29 @@
                 </div>
 
                 <div v-if="mouvementForm.affectationStock === 'emballage'">
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label>Site de stockage *</label>
-                            <select class="form-select" v-model="mouvementForm.site_id" required>
-                                <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.nom }}</option>
-                            </select>
-                        </div>
+                  <div class="row mb-3">
+                    <div class="col-md-4">
+                      <label>Site de stockage *</label>
+                      <select class="form-select" v-model="mouvementForm.site_id" required>
+                        <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.nom }}</option>
+                      </select>
                     </div>
-                    <h6>Articles de fourniture achetés</h6>
-                    <div v-for="(ligne, idx) in mouvementForm.fournitureLignes" :key="idx" class="row mb-2">
-                        <div class="col-md-5">
-                            <select class="form-select" v-model="ligne.article_id" required>
-                                <option v-for="art in articlesFourniture" :key="art.id" :value="art.id">{{ art.nom }} ({{ art.unite }})</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <input type="number" class="form-control" v-model.number="ligne.quantite" min="1" required>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-sm btn-danger" @click="supprimerLigneFourniture(idx)">×</button>
-                        </div>
+                  </div>
+                  <h6>Articles de fourniture achetés</h6>
+                  <div v-for="(ligne, idx) in mouvementForm.fournitureLignes" :key="idx" class="row mb-2">
+                    <div class="col-md-5">
+                      <select class="form-select" v-model="ligne.article_id" required>
+                        <option v-for="art in articlesFourniture" :key="art.id" :value="art.id">{{ art.nom }} ({{ art.unite }})</option>
+                      </select>
                     </div>
-                    <button class="btn btn-sm btn-secondary" @click="ajouterLigneFourniture">+ Ajouter une ligne</button>
+                    <div class="col-md-4">
+                      <input type="number" class="form-control" v-model.number="ligne.quantite" min="1" required>
+                    </div>
+                    <div class="col-md-3">
+                      <button class="btn btn-sm btn-danger" @click="supprimerLigneFourniture(idx)">×</button>
+                    </div>
+                  </div>
+                  <button class="btn btn-sm btn-secondary" @click="ajouterLigneFourniture">+ Ajouter une ligne</button>
                 </div>
               </div>
 
@@ -374,7 +362,6 @@
       </div>
     </div>
 
-    <!-- Modal Transfert -->
     <div v-if="showTransfertModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -419,7 +406,6 @@
       </div>
     </div>
 
-    <!-- Modal Change -->
     <div v-if="showChangeModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -469,7 +455,6 @@
       </div>
     </div>
 
-    <!-- Modal Justification -->
     <div v-if="showJustificationModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -514,7 +499,6 @@
       </div>
     </div>
 
-    <!-- Modal Clôture globale (jour/semaine) -->
     <div v-if="showClotureGlobaleModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -575,7 +559,6 @@
       </div>
     </div>
 
-    <!-- Modal Paiement salaires (multidevise) -->
     <div v-if="showPaiementSalairesModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -603,7 +586,6 @@
                 </select>
               </div>
             </div>
-            <!-- Champs de montant dans la devise de la sous‑caisse active -->
             <div class="row mb-3" v-if="paiementSalaires.type === 'avance_mois' || paiementSalaires.type === 'avance_annee'">
               <div class="col-md-6">
                 <label>Montant ({{ deviseActive }})</label>
@@ -634,7 +616,7 @@
                 <input type="text" class="form-control" :value="formatMontant(soldeEstime, deviseActive)" readonly>
               </div>
             </div>
-              <div class="alert alert-info">
+            <div class="alert alert-info">
               <strong>Salaire mensuel :</strong> {{ formatMontant(salaireTravailleurConverti, deviseActive) }} {{ deviseActive }}<br>
               <strong>Avances déjà perçues ce mois :</strong> {{ formatMontant(avancesMoisConverties, deviseActive) }} {{ deviseActive }}<br>
               <strong>Remboursements ce mois :</strong> {{ formatMontant(remboursementsMoisConverties, deviseActive) }} {{ deviseActive }}<br>
@@ -648,7 +630,6 @@
       </div>
     </div>
 
-    <!-- Modal Échéancier (avance année) -->
     <div v-if="showEcheancierModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -673,7 +654,6 @@
       </div>
     </div>
 
-    <!-- Modal Correction superviseur -->
     <div v-if="showCorrectionModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -711,7 +691,6 @@
       </div>
     </div>
 
-    <!-- Modal Annulation manuelle -->
     <div v-if="showAnnulationManuelleModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -774,7 +753,7 @@
         </div>
       </div>
     </div>
-    <!-- Modal confirmation transferts entrants -->
+
     <div v-if="showConfirmationTransfertEntrantModal" class="modal" style="display: block; background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -831,12 +810,10 @@ export default {
   name: 'Caisses',
   data() {
     return {
-      // Utilisateur et permissions
       peutCloturer: false,
       permissionApresCloture: false,
       peutEcrire: false,
       
-      // travailleur (pour les salaires)
       travailleursActifs: [],
       primesTravailleur: [],
       primeSelectionnee: null,
@@ -850,7 +827,6 @@ export default {
       showPaiementSalairesModal: false,
       paramsConges: { joursOuvrablesMois: 26 },
       
-      // Données
       caisses: [],
       sousCaisses: [],
       toutesSousCaisses: [],
@@ -873,7 +849,6 @@ export default {
       articlesFourniture: [],
       stocksFournitures: [],
       
-      // Sélection
       caisseActiveId: null,
       sousCaisseActiveId: null,
       semaineCouranteId: null,
@@ -881,12 +856,10 @@ export default {
       lastSousCaisseKey: 'lastSousCaisseId',
       lastSemaineKey: 'lastSemaineId',
       
-      // UI
       onglet: 'mouvements',
       triMouvementsCol: 'date',
       triMouvementsOrdre: 'desc',
       
-      // Modals
       showMouvementModal: false,
       showTransfertModal: false,
       showChangeModal: false,
@@ -899,7 +872,6 @@ export default {
       lignesCloture: [],
       commentaireClotureGlobale: '',
       
-      // Formulaires
       mouvementEdition: null,
       triEntreesCol: 'date',
       triEntreesOrdre: 'desc',
@@ -917,7 +889,7 @@ export default {
         commentaire: '',
         estBrouillon: false,
         aJustifier: false,
-        affectationStock: null,   // sera rempli automatiquement quand on choisit un poste
+        affectationStock: null,
         carburant_type_id: null,
         site_id: null,
         quantite_carburant: 0,
@@ -943,7 +915,6 @@ export default {
       
       cloturesSousCaisse: [],
       
-      // Correction
       mouvementOriginal: null,
       correctionForm: {
         montant: 0,
@@ -965,21 +936,15 @@ export default {
       },
       mouvementsEligiblesAnnulation: [],
       
-      // Contrôles de date
       dateMouvementMin: '',
       dateMouvementMax: '',
 
-      // emballage et carburant
-
       carburantTypes: [],
-      emballageTypes: [],
       sites: [],
       
-      // Avance année
       echeancier: [],
       totalEcheancier: 0,
       
-      // Soldes dynamiques (en devise de la sous‑caisse active)
       avancesMoisConverties: 0,
       remboursementsMoisConverties: 0,
       totalPrimesConverties: 0,
@@ -1222,7 +1187,7 @@ export default {
         const poste = this.postesBudgetaires.find(p => p.nom === newVal);
         this.mouvementForm.affectationStock = poste ? poste.affectation_stock : null;
         if (poste?.affectation_stock === 'emballage') {
-          this.mouvementForm.emballageLignes = []; // reset
+          this.mouvementForm.fournitureLignes = [];
         }
       },
       semaineCouranteId: {
@@ -1266,7 +1231,6 @@ export default {
       const pc = await db.reglages.where('cle').equals('params_conges').first();
       if (pc) this.paramsConges = pc.valeur;
       this.carburantTypes = await db.carburant_types.toArray();
-      this.emballageTypes = await db.emballage_types.toArray();
       this.sites = await db.sites.toArray();
       this.articlesFourniture = await db.articles_fourniture.toArray();
       this.stocksFournitures = await db.stocks_fournitures.toArray();
@@ -1282,7 +1246,6 @@ export default {
         const dateA = new Date(valA);
         const dateB = new Date(valB);
         if (dateA.getTime() === dateB.getTime()) {
-          // Si même date, comparer par dateCreation
           const dcA = new Date(a.dateCreation || 0);
           const dcB = new Date(b.dateCreation || 0);
           return ordre === 'asc' ? dcA - dcB : dcB - dcA;
@@ -1322,14 +1285,10 @@ export default {
         this.triSortiesOrdre = 'desc';
       }
     },
-    // ---------- FORMATTAGE DYNAMIQUE ----------
     formatInputNumberLive(event, devise) {
       let value = event.target.value;
-      // supprimer tout sauf chiffres, point, virgule
       value = value.replace(/[^\d.,]/g, '');
-      // remplacer virgule par point
       value = value.replace(/,/g, '.');
-      // ne garder que le premier point
       const parts = value.split('.');
       if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
       event.target.value = value;
@@ -1341,15 +1300,12 @@ export default {
       if (isNaN(number)) number = 0;
       event.target.value = this.formatMontant(number, devise);
     },
-    // ---------- UTILITAIRES DE PERMISSION ----------
     peutModifierSemaine(semaineId) {
       const semaine = this.semaines.find(s => s.id === semaineId);
       if (!semaine) return true;
       if (!semaine.estCloturee) return this.peutEcrire;
       return this.permissionApresCloture;
     },
-
-    // ---------- FORMATTAGE ----------
     formatMontant(montant, devise) {
       if (montant === undefined || montant === null) return '0';
       if (devise === 'CDF') {
@@ -1396,8 +1352,6 @@ export default {
     estSousCaisseCloturee(semaineId, sousCaisseId) {
       return this.cloturesSousCaisse.some(c => c.semaineId === semaineId && c.sousCaisseId === sousCaisseId && c.type === 'hebdo');
     },
-
-    // ---------- CHARGEMENT DES DONNÉES ----------
     async chargerDonnees() {
       this.caisses = await db.caisses.toArray() || [];
       this.toutesSousCaisses = await db.sous_caisses.toArray() || [];
@@ -1429,23 +1383,14 @@ export default {
     },
     async getSemaineCouranteNonCloturee() {
       if (!this.caisseActiveId) return null;
-      
-      // Récupérer toutes les semaines de la caisse
       const toutes = await db.semaines_caisse.where('caisseId').equals(this.caisseActiveId).toArray();
-      // Trier par date décroissante
       toutes.sort((a, b) => new Date(b.dateDebut) - new Date(a.dateDebut));
-      
-      // Chercher la première semaine non clôturée
       let semaineNonCloturee = toutes.find(s => !s.estCloturee);
-      
       if (!semaineNonCloturee) {
-        // Aucune semaine non clôturée → en créer une nouvelle
         await this.creerPremiereSemainePourCaisse();
-        // Recharger les semaines
         await this.chargerSemainesParCaisse();
         semaineNonCloturee = this.semaines.find(s => !s.estCloturee);
       }
-      
       return semaineNonCloturee;
     },
     async mettreAJourDroits() {
@@ -1470,7 +1415,6 @@ export default {
       const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
       const storedCaisseId = localStorage.getItem(`${this.lastCaisseKey}_${user.id}`);
       
-      // Sélection caisse
       if (storedCaisseId && this.caissesAccessibles.some(c => c.id === storedCaisseId)) {
         this.caisseActiveId = storedCaisseId;
       } else if (this.caissesAccessibles.length > 0) {
@@ -1486,7 +1430,6 @@ export default {
           this.sousCaisseActiveId = this.sousCaisses[0].id;
         }
         await this.chargerSemainesParCaisse();
-        // Définir la semaine courante sur la première de la liste (la plus récente)
         this.semaineCouranteId = this.semaines.length > 0 ? this.semaines[0].id : null;
       }
       this.chargementEnCours = false;
@@ -1501,8 +1444,6 @@ export default {
       const sem = await db.semaines_caisse.where('caisseId').equals(this.caisseActiveId).toArray();
       this.semaines = sem.sort((a, b) => new Date(b.dateDebut) - new Date(a.dateDebut));
     },
-
-    // ---------- GESTION DES SEMAINES ----------
     async nettoyerAnciennesSemaines() {
       const toutes = await db.semaines_caisse.where('caisseId').equals(this.caisseActiveId).toArray();
       const triees = toutes.sort((a,b) => new Date(b.dateDebut) - new Date(a.dateDebut));
@@ -1527,13 +1468,12 @@ export default {
     },
     async changerSemaine() {},
     async changerCaisse() {
-      await this.chargerSousCaisses();  // filtre les sous‑caisses de la caisse sélectionnée
+      await this.chargerSousCaisses();
       await this.chargerSemainesParCaisse();
       
       if (this.semaines.length === 0) {
         await this.creerPremiereSemainePourCaisse();
       } else {
-        // Vérifier pour chaque sous‑caisse si son solde initial a été enregistré dans la première semaine
         const premiereSemaine = this.semaines.sort((a,b) => new Date(a.dateDebut) - new Date(b.dateDebut))[0];
         for (let sc of this.sousCaisses) {
           await this.initialiserSoldeInitialSousCaisse(sc);
@@ -1650,7 +1590,6 @@ export default {
         return;
       }
       
-      // Vérifier si un mouvement de solde initial existe déjà pour cette sous‑caisse dans cette semaine
       const existant = await db.mouvementsCaisse
         .where({ sousCaisseId: sousCaisse.id, semaineId: semaine.id, posteBudgetaire: 'Solde initial' })
         .first();
@@ -1692,8 +1631,6 @@ export default {
       await db.mouvementsCaisse.add(mouvementData);
       await this.chargerDonnees();
     },
-
-    // ---------- MOUVEMENTS ----------
     verifierSoldeSuffisant(montant) {
       if (montant <= 0) return true;
       return this.soldeCourant >= montant;
@@ -1713,27 +1650,28 @@ export default {
         });
       }
     },
-
-    async ajusterStockFourniture(typeId, siteId, delta) {
-      let stock = await db.emballage_stocks.where({ type_id: typeId, site_id: siteId }).first();
+    async ajusterStockFourniture(articleId, siteId, delta) {
+      let stock = this.stocksFournitures.find(s => s.article_id === articleId && s.site_id === siteId);
       if (stock) {
         stock.quantite += delta;
         if (stock.quantite < 0) stock.quantite = 0;
-        await db.emballage_stocks.update(stock.id, stock);
+        await db.stocks_fournitures.update(stock.id, { quantite: stock.quantite });
       } else if (delta > 0) {
-        await db.emballage_stocks.add({
+        const newStock = {
           id: crypto.randomUUID(),
-          type_id: typeId,
+          article_id: articleId,
           site_id: siteId,
           quantite: delta
-        });
+        };
+        await db.stocks_fournitures.add(newStock);
+        this.stocksFournitures.push(newStock);
       }
     },
-    ajouterLigneEmballage() {
-      this.mouvementForm.emballageLignes.push({ type_id: null, quantite: 1 });
+    ajouterLigneFourniture() {
+      this.mouvementForm.fournitureLignes.push({ article_id: null, quantite: 1 });
     },
-    supprimerLigneEmballage(idx) {
-      this.mouvementForm.emballageLignes.splice(idx, 1);
+    supprimerLigneFourniture(idx) {
+      this.mouvementForm.fournitureLignes.splice(idx, 1);
     },
     ouvrirMouvement() {
       if (this.semaineCourante && this.semaineCourante.estCloturee) {
@@ -1741,25 +1679,25 @@ export default {
         return;
       }
       this.mouvementEdition = null;
-          this.mouvementForm = {
-            date: new Date().toISOString().slice(0,10),
-            sousCaisseId: this.sousCaisseActiveId || (this.sousCaisses[0]?.id || ''),
-            type: 'entree',
-            montant: 0,
-            designation: '',
-            posteBudgetaire: '',
-            factureId: '',
-            justificatif: '',
-            commentaire: '',
-            estBrouillon: false,
-            aJustifier: false,
-            affectationStock: null,
-            carburant_type_id: null,
-            site_id: null,
-            quantite_carburant: 0,
-            emballageLignes: []
-        };
-        this.showMouvementModal = true;
+      this.mouvementForm = {
+        date: new Date().toISOString().slice(0,10),
+        sousCaisseId: this.sousCaisseActiveId || (this.sousCaisses[0]?.id || ''),
+        type: 'entree',
+        montant: 0,
+        designation: '',
+        posteBudgetaire: '',
+        factureId: '',
+        justificatif: '',
+        commentaire: '',
+        estBrouillon: false,
+        aJustifier: false,
+        affectationStock: null,
+        carburant_type_id: null,
+        site_id: null,
+        quantite_carburant: 0,
+        fournitureLignes: []
+      };
+      this.showMouvementModal = true;
     },
     closeMouvementModal() { this.showMouvementModal = false; },
     onTypeChange() { this.mouvementForm.posteBudgetaire = ''; },
@@ -1787,7 +1725,6 @@ export default {
             aJustifier = true;
         }
 
-        // Justificatif automatique facture
         if (this.mouvementForm.factureId && !this.mouvementForm.justificatif) {
             const facture = await db.factures.get(this.mouvementForm.factureId);
             if (facture) {
@@ -1797,7 +1734,6 @@ export default {
 
         const { montant_cdf, montant_usd } = await convertirMontants(montantOrigine, sousCaisse.devise, this.mouvementForm.date);
 
-        // Calcul du montant converti dans la devise de la facture
         let montantConvertiFacture = null;
         let depassement = false;
         if (this.mouvementForm.factureId && this.mouvementForm.type === 'entree') {
@@ -1864,7 +1800,6 @@ export default {
                 }
             }
 
-            // Gestion affectation stock
             if (this.mouvementForm.affectationStock === 'carburant') {
                 await apiService.ajouter('carburant_mouvements', {
                     id: crypto.randomUUID(),
@@ -1883,21 +1818,23 @@ export default {
                     this.mouvementForm.quantite_carburant
                 );
             } else if (this.mouvementForm.affectationStock === 'emballage') {
-                for (let ligne of this.mouvementForm.emballageLignes) {
-                    if (!ligne.type_id || ligne.quantite <= 0) continue;
-                    await apiService.ajouter('achat_emballage_lignes', {
-                        id: crypto.randomUUID(),
-                        mouvementCaisseId: mouvementId,
-                        emballage_type_id: ligne.type_id,
-                        quantite: ligne.quantite
-                    }, { audit: true });
-                    // Site par défaut : celui de la sous‑caisse, ou bien un site sélectionné dans le formulaire ?
-                    const siteId = this.mouvementForm.site_id;   // désormais toujours renseigné
-                    await this.ajusterStockEmballage(ligne.type_id, siteId, ligne.quantite);
-                }
+              for (let ligne of this.mouvementForm.fournitureLignes) {
+                if (!ligne.article_id || ligne.quantite <= 0) continue;
+                await apiService.ajouter('mouvements_fournitures', {
+                  id: crypto.randomUUID(),
+                  type_id: ligne.article_id,
+                  site_id: this.mouvementForm.site_id,
+                  date: this.mouvementForm.date,
+                  type: 'entree',
+                  quantite: ligne.quantite,
+                  source: 'caisse',
+                  reference_id: mouvementId,
+                  commentaire: 'Achat via caisse'
+                }, { audit: true });
+                await this.ajusterStockFourniture(ligne.article_id, this.mouvementForm.site_id, ligne.quantite);
+              }
             }
 
-            // Message informatif
             if (this.mouvementForm.factureId && this.mouvementForm.type === 'entree' && !this.mouvementForm.estBrouillon) {
                 const facture = await db.factures.get(this.mouvementForm.factureId);
                 if (facture) {
@@ -1966,7 +1903,6 @@ export default {
                 }
             }
 
-            // Supprimer les écritures manuelles de correction liées à ce mouvement
             await db.ecritures_manuelles.where('parentId').equals(id).delete();
 
             if (estCouple && mvtLie) {
@@ -1987,8 +1923,6 @@ export default {
             alert('Erreur lors de la suppression');
         }
     },
-    
-    // ---------- TRANSFERT ----------
     ouvrirTransfert() {
       if (this.semaineCourante && this.semaineCourante.estCloturee) {
         alert('Cette semaine est clôturée, vous ne pouvez plus effectuer de transfert.');
@@ -2094,7 +2028,6 @@ export default {
       
       await this.chargerDonnees();
       
-      // Retirer le transfert de la liste locale
       this.transfertsEntrantsAConfirmer = this.transfertsEntrantsAConfirmer.filter(t => t.id !== mouvementSortie.id);
       
       if (this.transfertsEntrantsAConfirmer.length === 0) {
@@ -2116,13 +2049,11 @@ export default {
       const t = this.transfertARefuser;
       const comm = JSON.parse(t.commentaire);
       
-      // Annuler le mouvement de sortie original
       await apiService.modifier('mouvementsCaisse', t.id, {
         status: 'annulé',
         commentaire: (t.commentaire || '') + `\nRefusé le ${new Date().toLocaleDateString()} - Motif: ${this.motifRefus}`
       });
 
-      // Créer une compensation (entrée) chez l'expéditeur
       const semaineSource = await this.getSemaineCouranteNonClotureePourCaisse(t.caisseId);
       
       const designationCompensation = `Refus de transfert de ${comm.sourceCaisseNom} (${comm.sourceSousCaisseNom}) vers ${this.getCaisseNom(comm.destinationCaisseId)} (${comm.destinationNom}) - Motif: ${this.motifRefus}`;
@@ -2150,7 +2081,6 @@ export default {
       
       await apiService.ajouter('mouvementsCaisse', mouvementCompensation, { audit: true });
 
-      // Notification à l'expéditeur
       const expediteurId = t.createurId;
       if (expediteurId) {
         await notificationService.envoyerMessageSysteme('transfert_refuse', {
@@ -2161,7 +2091,6 @@ export default {
 
       await this.chargerDonnees();
       
-      // Retirer de la liste locale
       this.transfertsEntrantsAConfirmer = this.transfertsEntrantsAConfirmer.filter(item => item.id !== t.id);
       this.transfertARefuser = null;
       this.motifRefus = '';
@@ -2172,7 +2101,7 @@ export default {
       
       alert('Transfert refusé.');
     },
-      async getSemaineCouranteNonClotureePourCaisse(caisseId) {
+    async getSemaineCouranteNonClotureePourCaisse(caisseId) {
       const toutes = await db.semaines_caisse.where('caisseId').equals(caisseId).toArray();
       toutes.sort((a, b) => new Date(b.dateDebut) - new Date(a.dateDebut));
       let semaine = toutes.find(s => !s.estCloturee);
@@ -2275,8 +2204,6 @@ export default {
         alert('Erreur');
       }
     },
-    
-    // ---------- CHANGE ----------
     ouvrirChange() {
       if (this.semaineCourante && this.semaineCourante.estCloturee) {
         alert('Cette semaine est clôturée, vous ne pouvez plus effectuer de change.');
@@ -2372,8 +2299,6 @@ export default {
         alert('Erreur');
       }
     },
-
-    // ---------- JUSTIFICATION ----------
     justifierMouvement(mvt) {
       this.mouvementAJustifier = mvt;
       this.justificationLignes = [{
@@ -2489,7 +2414,6 @@ export default {
                 commentaire: `Annulé le ${new Date().toISOString()}`
             });
 
-            // Supprimer les écritures manuelles de correction liées
             await db.ecritures_manuelles.where('parentId').equals(mvt.id).delete();
 
             const typeCompensation = mvt.type === 'sortie' ? 'entree' : 'sortie';
@@ -2524,8 +2448,6 @@ export default {
             alert('Erreur');
         }
     },
-
-    // ---------- ANNULATION MANUELLE ----------
     ouvrirAnnulationManuelle() {
       this.annulationManuelleForm = {
         type: '',
@@ -2653,8 +2575,6 @@ export default {
       this.showAnnulationManuelleModal = false;
       alert('Annulation enregistrée dans la semaine courante.');
     },
-
-    // ---------- CLÔTURE GLOBALE ----------
     clotureJournaliere() {
       if (!this.sousCaisseActiveId) {
         alert("Veuillez sélectionner une sous-caisse.");
@@ -2815,7 +2735,6 @@ export default {
       for (let ligne of this.lignesCloture) {
         const sc = this.sousCaisses.find(s => s.id === ligne.sousCaisseId);
         if (!sc) continue;
-        // Pas de conversion, on cumule simplement les soldes réels déclarés dans leur devise
         if (sc.devise === 'USD') {
           soldeOuvertureUSD += ligne.soldeReelNum;
         } else {
@@ -2845,8 +2764,6 @@ export default {
       await this.chargerSemainesParCaisse();
       this.semaineCouranteId = newSemaine.id;
     },
-
-    // ---------- CORRECTION SUPERVISEUR ----------
     async corrigerMouvement(mvt) {
       if (!this.peutModifierSemaine(mvt.semaineId)) {
         alert("Cette semaine est clôturée (hebdo) et vous n'avez pas les droits pour la modifier.");
@@ -2870,7 +2787,6 @@ export default {
 
       const nouveauMontant = this.parseMontant(this.correctionForm.montant);
       
-      // Mise à jour du mouvement original
       await apiService.modifier('mouvementsCaisse', this.mouvementOriginal.id, {
         montant: nouveauMontant,
         posteBudgetaire: this.correctionForm.posteBudgetaire,
@@ -2878,7 +2794,6 @@ export default {
         commentaire: (this.mouvementOriginal.commentaire || '') + '\n' + this.correctionForm.commentaire
       });
 
-      // Si le mouvement est lié à une avance, mettre à jour le montant de l'avance
       const avance = await db.avances.where('mouvementCaisseId').equals(this.mouvementOriginal.id).first();
       if (avance) {
         const travailleur = await db.travailleurs.get(avance.travailleur_id);
@@ -2893,7 +2808,6 @@ export default {
         await db.avances.update(avance.id, { montant: montantConverti });
       }
 
-      // Mise à jour du statut de facture si nécessaire
       if (this.mouvementOriginal.factureId) {
         await this.mettreAJourFacturePaiement(this.mouvementOriginal.factureId);
       }
@@ -2969,8 +2883,6 @@ export default {
       this.showCorrectionModal = false;
       alert('Mouvement annulé, compensation ajoutée');
     },
-
-    // ---------- FACTURES ----------
     async mettreAJourFacturePaiement(factureId) {
       const facture = await db.factures.get(factureId);
       if (!facture) return;
@@ -2986,8 +2898,6 @@ export default {
         await apiService.modifier('factures', factureId, { statutPaiement: nouveauStatut, dateDernierPaiement: new Date().toISOString() });
       }
     },
-
-    // ---------- SALAIRES (MULTIDEVISE) ----------
     async ouvrirPaiementSalaires() {
       const all = await db.travailleurs.toArray();
       this.travailleursActifs = all.filter(t => t.actif === true);
@@ -3050,34 +2960,27 @@ export default {
       let salaireBrut = travailleur.salaire_actuel || 0;
       this.salaireTravailleurConverti = this.convertirMontant(salaireBrut, deviseSalaire, this.deviseActive, taux);
 
-      // Avances du mois
       const avances = await db.avances.where({ travailleur_id: travailleur.id, mois_concerne: this.paiementSalaires.moisConcerne, type: 'mois' }).toArray();
       this.avancesMoisConverties = avances.reduce((s, a) => s + this.convertirMontant(a.montant, deviseSalaire, this.deviseActive, taux), 0);
 
-      // Remboursements du mois
       const remboursements = await db.remboursements_avances.where('mois_remboursement').equals(this.paiementSalaires.moisConcerne).toArray();
       this.remboursementsMoisConverties = remboursements.reduce((s, r) => s + this.convertirMontant(r.montant_rembourse, deviseSalaire, this.deviseActive, taux), 0);
 
-      // Suspensions
       const suspension = await db.presence_suspension.where({ travailleur_id: travailleur.id, annee, mois }).first();
       const joursSuspension = suspension ? suspension.jours_suspension : 0;
       const salaireJournalier = salaireBrut / this.paramsConges.joursOuvrablesMois;
       let montantSuspensionBrut = salaireJournalier * joursSuspension;
       
-      // Convertir en devise active
       let montantSuspensionConverti = this.convertirMontant(montantSuspensionBrut, deviseSalaire, this.deviseActive, taux);
       
-      // Appliquer l'arrondi à la centaine inférieure SEULEMENT si la devise active est CDF
       if (this.deviseActive === 'CDF') {
         montantSuspensionConverti = this.arrondirCentaineInferieure(montantSuspensionConverti);
       }
       this.montantSuspension = montantSuspensionConverti;
 
-      // Primes
       const primes = await db.primes.where({ travailleur_id: travailleur.id, annee, mois }).toArray();
       this.totalPrimesConverties = primes.reduce((s, p) => s + this.convertirMontant(p.montant, p.devise || 'CDF', this.deviseActive, taux), 0);
 
-      // Salaire déjà payé
       const posteNom = `Salaire - ${travailleur.departement}`;
       const mouvementsSemaine = this.mouvementsSemaine.filter(m => m.posteBudgetaire === posteNom && m.designation.includes(travailleur.nom));
       const dejaPaye = mouvementsSemaine.reduce((s, m) => s + m.montant, 0);
@@ -3259,10 +3162,8 @@ export default {
       };
 
       try {
-        // Créer le mouvement
         const mouvementId = await apiService.ajouter('mouvementsCaisse', mouvementData, { audit: true });
 
-        // Créer l'avance ou le remboursement lié
         if (this.paiementSalaires.type === 'avance_mois') {
           await db.avances.add({
             id: avanceId,

@@ -130,7 +130,7 @@
                 <tr v-for="c in consignationsEnAttente" :key="c.id">
                   <td>{{ getClientNom(c.clientId) }}</td>
                   <td>{{ getFactureNumero(c.factureId) }}</td>
-                  <td>{{ getEmballageNom(c.emballage_type_id) }}</td>
+                  <td>{{ getConditionnementNom(c.conditionnementId) }}</td>
                   <td>{{ c.quantite_attendue }}</td>
                   <td>{{ c.quantite_retournee }}</td>
                   <td>{{ formatDate(c.dateLivraison) }}</td>
@@ -471,6 +471,10 @@ export default {
       historiqueOperations: [],
       deviseAffichage: 'CDF',
 
+      articlesFourniture: [],
+      stocksFournitures: [],
+      conditionnementComposants: [],
+
       // Consignes
 
       consignations: [],
@@ -537,11 +541,12 @@ export default {
     await this.chargerSecteurs();
     await this.chargerClients();
     this.conditionnements = await db.conditionnements.toArray();
+    this.articlesFourniture = await db.articles_fourniture.toArray();
+    this.stocksFournitures = await db.stocks_fournitures.toArray();
+    this.conditionnementComposants = await db.conditionnement_composants.toArray();
     await this.chargerTauxChangeJour();
     await this.chargerStatistiques();
     this.chargerConsignations();
-    this.emballageStocks = await db.emballage_stocks.toArray();
-    this.emballageTypes = await db.emballage_types.toArray();
   },
   methods: {
     async chargerSecteurs() {
@@ -550,6 +555,9 @@ export default {
     },
     async chargerClients() {
       this.clients = await db.clients.toArray() || [];
+    },
+    async chargerConsignations() {
+        this.consignations = await db.consignations.where('statut').equals('en_attente').toArray();
     },
     async chargerTauxChangeJour() {
       const taux = await db.taux_change.where('date').equals(new Date().toISOString().slice(0,10)).first();
@@ -610,8 +618,8 @@ export default {
     },
     getClientNom(id) { const c = this.clients.find(c => c.id === id); return c ? c.nom : '-'; },
     getConditionnementNom(id) {
-      const cond = this.conditionnements.find(c => c.id === id);
-      return cond ? cond.nom : '-';
+        const cond = this.conditionnements.find(c => c.id === id);
+        return cond ? cond.nom : '-';
     },
 
     // ========== DÉTAIL CLIENT ==========
@@ -808,32 +816,42 @@ export default {
 
     // =========== CONSIGNE ===========
 
-    async chargerConsignations() {
-      this.consignations = await db.consignations.where('statut').equals('en_attente').toArray();
-    },
     async enregistrerRetourConsignation(cons) {
-      await db.consignations.update(cons.id, { statut: 'retourné', quantite_retournee: cons.quantite_attendue });
-      // Créditer le stock du contenant vide (il faut connaître le site – on peut le récupérer depuis la facture)
-      const facture = await db.factures.get(cons.factureId);
-      if (facture) {
-        await this.ajusterStockEmballage(cons.emballage_type_id, facture.siteId, cons.quantite_attendue);
-      }
-      await this.chargerConsignations();
+        await db.consignations.update(cons.id, { statut: 'retourné', quantite_retournee: cons.quantite_attendue });
+        const facture = await db.factures.get(cons.factureId);
+        if (facture) {
+            // Retrouver l'article de fourniture associé au conditionnement
+            const composants = this.conditionnementComposants.filter(c => c.conditionnement_id === cons.conditionnementId);
+            let articleId = null;
+            for (const comp of composants) {
+                const article = this.articlesFourniture.find(a => a.id === comp.article_fourniture_id);
+                if (article && article.type === 'contenant_vide') {
+                    articleId = article.id;
+                    break;
+                }
+            }
+            if (articleId) {
+                await this.ajusterStockFourniture(articleId, facture.siteId, cons.quantite_attendue);
+            }
+        }
+        await this.chargerConsignations();
     },
-    async ajusterStockEmballage(typeId, siteId, delta) {
-      let stock = await db.emballage_stocks.where({ type_id: typeId, site_id: siteId }).first();
-      if (stock) {
-        stock.quantite += delta;
-        if (stock.quantite < 0) stock.quantite = 0;
-        await db.emballage_stocks.update(stock.id, stock);
-      } else if (delta > 0) {
-        await db.emballage_stocks.add({
-          id: crypto.randomUUID(),
-          type_id: typeId,
-          site_id: siteId,
-          quantite: delta
-        });
-      }
+    async ajusterStockFourniture(articleId, siteId, delta) {
+        let stock = this.stocksFournitures.find(s => s.article_id === articleId && s.site_id === siteId);
+        if (stock) {
+            stock.quantite += delta;
+            if (stock.quantite < 0) stock.quantite = 0;
+            await db.stocks_fournitures.update(stock.id, { quantite: stock.quantite });
+        } else if (delta > 0) {
+            const newStock = {
+                id: crypto.randomUUID(),
+                article_id: articleId,
+                site_id: siteId,
+                quantite: delta
+            };
+            await db.stocks_fournitures.add(newStock);
+            this.stocksFournitures.push(newStock);
+        }
     },
 
     // ========== STATISTIQUES ==========
