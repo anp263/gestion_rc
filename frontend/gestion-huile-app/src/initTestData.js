@@ -16,11 +16,10 @@ export async function initTestData() {
     const confirmation = confirm(
         "⚠️ Ce script va réinitialiser les données de test.\n\n" +
         "Il va générer :\n" +
-        "• 5 utilisateurs, 4 sites, 4 parcelles\n" +
-        "• 4 conditionnements, 7 articles de fourniture\n" +
-        "• ~35 semaines de récolte et production\n" +
-        "• 5 travailleurs, 5 clients\n" +
-        "• 20 semaines de caisse clôturées avec paiements\n\n" +
+        "• Utilisateurs, sites, parcelles, clients, travailleurs\n" +
+        "• Budget complet sur 12 mois\n" +
+        "• Mouvements réels proches du budget avec quelques dépassements\n" +
+        "• 20 semaines de caisse clôturées\n\n" +
         "Continuer ?"
     );
     if (!confirmation) return;
@@ -57,13 +56,11 @@ export async function initTestData() {
 
     // ========== 2. UTILISATEURS ==========
     await db.utilisateurs.clear();
-
     const adminUser = { id: crypto.randomUUID(), nom: 'Admin', login: 'admin', mot_de_passe: 'admin123', role: 'superviseur' };
     const vendeur1 = { id: crypto.randomUUID(), nom: 'Marie Vente', login: 'vente', mot_de_passe: 'vente', role: 'superviseur_vente' };
     const vendeur2 = { id: crypto.randomUUID(), nom: 'Pierre Commercial', login: 'pierre', mot_de_passe: 'pierre', role: 'vendeur' };
     const caissier = { id: crypto.randomUUID(), nom: 'Jean Caissier', login: 'caissier', mot_de_passe: 'caisse', role: 'caissier' };
     const prod = { id: crypto.randomUUID(), nom: 'Paul Production', login: 'prod', mot_de_passe: 'prod', role: 'superviseur_huilerie' };
-
     await safeBulkAdd('utilisateurs', [adminUser, vendeur1, vendeur2, caissier, prod]);
 
     // ========== 3. RÉGLAGES ==========
@@ -131,7 +128,7 @@ export async function initTestData() {
     ];
     await safeBulkAdd('articles_fourniture', articlesFourniture);
 
-    // ========== 7. COMPOSANTS DES CONDITIONNEMENTS ==========
+    // ========== 7. COMPOSANTS ==========
     const comps = [];
     for (const cond of conditionnements) {
         if (cond.code === 'B1') {
@@ -150,16 +147,11 @@ export async function initTestData() {
     }
     await safeBulkAdd('conditionnement_composants', comps);
 
-    // ========== 8. STOCKS DE FOURNITURES ==========
+    // ========== 8. STOCKS FOURNITURES ==========
     const stocksFournitures = [];
     for (const site of sites) {
         for (const art of articlesFourniture) {
-            stocksFournitures.push({
-                id: crypto.randomUUID(),
-                site_id: site.id,
-                article_id: art.id,
-                quantite: 500 + Math.floor(Math.random() * 500)
-            });
+            stocksFournitures.push({ id: crypto.randomUUID(), site_id: site.id, article_id: art.id, quantite: 500 + Math.floor(Math.random() * 500) });
         }
     }
     await safeBulkAdd('stocks_fournitures', stocksFournitures);
@@ -195,7 +187,7 @@ export async function initTestData() {
     }
     await safeBulkAdd('carburant_stocks', carburantStocks);
 
-    // ========== 10. MODES DE PAIEMENT ==========
+    // ========== 10. MODES PAIEMENT ==========
     await safeBulkAdd('modes_paiement', [
         { id: crypto.randomUUID(), nom: 'Liquide', actif: true },
         { id: crypto.randomUUID(), nom: 'Orange Money', actif: true },
@@ -221,7 +213,7 @@ export async function initTestData() {
     await safeBulkAdd('postes_budgetaires', postesBudget);
 
     // ========== 12. PLAN COMPTABLE ==========
-    const planComptable = [
+    await safeBulkAdd('plan_comptable', [
         { id: crypto.randomUUID(), numero_compte: '701501', intitule: 'Ventes huile', type: 'produit' },
         { id: crypto.randomUUID(), numero_compte: '624101', intitule: 'Transport régimes', type: 'charge' },
         { id: crypto.randomUUID(), numero_compte: '624201', intitule: 'Carburant', type: 'charge' },
@@ -232,8 +224,7 @@ export async function initTestData() {
         { id: crypto.randomUUID(), numero_compte: '613201', intitule: 'Loyer', type: 'charge' },
         { id: crypto.randomUUID(), numero_compte: '606401', intitule: 'Fournitures bureau', type: 'charge' },
         { id: crypto.randomUUID(), numero_compte: '622601', intitule: 'Honoraires comptables', type: 'charge' }
-    ];
-    await safeBulkAdd('plan_comptable', planComptable);
+    ]);
 
     // ========== 13. JOURNAUX ==========
     await safeBulkAdd('journaux', [
@@ -243,16 +234,12 @@ export async function initTestData() {
         { id: crypto.randomUUID(), code: 'OD', libelle: 'Opérations diverses', type: 'manuel' }
     ]);
 
-    // ========== 14. TAUX DE CHANGE JOURNALIERS ==========
+    // ========== 14. TAUX ==========
     const tauxJournaliers = [];
     for (let i = 0; i < JOURS_TOTAL; i++) {
         const date = new Date(DEBUT_ANNEE);
         date.setDate(DEBUT_ANNEE.getDate() + i);
-        tauxJournaliers.push({
-            id: crypto.randomUUID(),
-            date: date.toISOString().slice(0, 10),
-            taux: 2500 + Math.floor(Math.random() * 50)
-        });
+        tauxJournaliers.push({ id: crypto.randomUUID(), date: date.toISOString().slice(0, 10), taux: 2500 + Math.floor(Math.random() * 50) });
     }
     await safeBulkAdd('taux_change', tauxJournaliers);
 
@@ -272,15 +259,11 @@ export async function initTestData() {
     for (let i = 1; i <= 40; i++) {
         const date = new Date(DEBUT_ANNEE);
         date.setDate(DEBUT_ANNEE.getDate() + i * 5);
-        lots.push({
-            id: crypto.randomUUID(),
-            numero: `LOT-${String(i).padStart(3, '0')}`,
-            dateCreation: date.toISOString()
-        });
+        lots.push({ id: crypto.randomUUID(), numero: `LOT-${String(i).padStart(3, '0')}`, dateCreation: date.toISOString() });
     }
     await safeBulkAdd('lots', lots);
 
-    // ========== 17. SEMAINES DE RÉCOLTE & PRODUCTION ==========
+    // ========== 17. SEMAINES RÉCOLTE/PRODUCTION ==========
     const debutAnneeProd = new Date(ANNEE_COURANTE, 0, 5);
     const semainesRecolte = [];
     const semainesProd = [];
@@ -290,30 +273,12 @@ export async function initTestData() {
         const dimanche = new Date(lundi);
         dimanche.setDate(lundi.getDate() + 6);
         if (lundi > DATE_LIMITE) break;
-
         const dateDebut = lundi.toISOString().slice(0, 10);
         const dateFin = dimanche.toISOString().slice(0, 10);
         const facteurSaison = 1.0 + Math.random() * 0.3;
         const poidsRegimes = Math.round(5000 * facteurSaison + Math.random() * 500);
-
-        semainesRecolte.push({
-            id: crypto.randomUUID(),
-            dateDebut,
-            dateFin,
-            poidsRegimesTotal: poidsRegimes,
-            nbRegimesTotal: Math.round(poidsRegimes / 25),
-            nbPalmiersEntretenusTotal: 400 + Math.floor(Math.random() * 100),
-            nbPalmiersVisitesTotal: 500 + Math.floor(Math.random() * 100),
-            poidsMoyenRegime: 25,
-            poidsRegimeParPalmier: 50
-        });
-        semainesProd.push({
-            id: crypto.randomUUID(),
-            dateDebut,
-            dateFin,
-            consoGasoilTotal: Math.round(200 * facteurSaison),
-            consoEssenceTotal: Math.round(50 * facteurSaison)
-        });
+        semainesRecolte.push({ id: crypto.randomUUID(), dateDebut, dateFin, poidsRegimesTotal: poidsRegimes, nbRegimesTotal: Math.round(poidsRegimes / 25), nbPalmiersEntretenusTotal: 400 + Math.floor(Math.random() * 100), nbPalmiersVisitesTotal: 500 + Math.floor(Math.random() * 100), poidsMoyenRegime: 25, poidsRegimeParPalmier: 50 });
+        semainesProd.push({ id: crypto.randomUUID(), dateDebut, dateFin, consoGasoilTotal: Math.round(200 * facteurSaison), consoEssenceTotal: Math.round(50 * facteurSaison) });
     }
     await safeBulkAdd('semaines_recolte', semainesRecolte);
     await safeBulkAdd('semaines_production', semainesProd);
@@ -328,21 +293,12 @@ export async function initTestData() {
             date.setDate(debut.getDate() + j);
             if (date > DATE_LIMITE) break;
             const parcelle = parcelles[Math.floor(Math.random() * parcelles.length)];
-            recolteJournaliere.push({
-                id: crypto.randomUUID(),
-                semaineId: sem.id,
-                date: date.toISOString().slice(0, 10),
-                parcelle: parcelle.nom,
-                nbTravailleurs: 4 + Math.floor(Math.random() * 4),
-                nbPalmiersRecoltes: 15 + Math.floor(Math.random() * 10),
-                nbPalmiersEntretenus: 20 + Math.floor(Math.random() * 15),
-                nbRegimes: 25 + Math.floor(Math.random() * 15)
-            });
+            recolteJournaliere.push({ id: crypto.randomUUID(), semaineId: sem.id, date: date.toISOString().slice(0, 10), parcelle: parcelle.nom, nbTravailleurs: 4 + Math.floor(Math.random() * 4), nbPalmiersRecoltes: 15 + Math.floor(Math.random() * 10), nbPalmiersEntretenus: 20 + Math.floor(Math.random() * 15), nbRegimes: 25 + Math.floor(Math.random() * 15) });
         }
     }
     await safeBulkAdd('recolte_journaliere', recolteJournaliere);
 
-    // ========== 19. PRODUCTION CONSOMMATION & LOTS ==========
+    // ========== 19. PRODUCTION ==========
     const prodConsommation = [];
     const prodLots = [];
     for (let i = 0; i < semainesProd.length; i++) {
@@ -352,53 +308,24 @@ export async function initTestData() {
             const dateJour = new Date(dateSem);
             dateJour.setDate(dateSem.getDate() + d);
             if (dateJour > DATE_LIMITE) break;
-            prodConsommation.push({
-                id: crypto.randomUUID(),
-                semaineProdId: semaine.id,
-                date: dateJour.toISOString().slice(0, 10),
-                fruitsTransformesKg: Math.round(800 + Math.random() * 200),
-                consoGasoil: Math.round(20 + Math.random() * 5),
-                consoEssence: Math.round(5 + Math.random() * 3),
-                semaineRecolteId: semainesRecolte[i]?.id || null,
-                nbTravailleurs: 4 + Math.floor(Math.random() * 4)
-            });
+            prodConsommation.push({ id: crypto.randomUUID(), semaineProdId: semaine.id, date: dateJour.toISOString().slice(0, 10), fruitsTransformesKg: Math.round(800 + Math.random() * 200), consoGasoil: Math.round(20 + Math.random() * 5), consoEssence: Math.round(5 + Math.random() * 3), semaineRecolteId: semainesRecolte[i]?.id || null, nbTravailleurs: 4 + Math.floor(Math.random() * 4) });
         }
         for (let j = 0; j < 2; j++) {
             const lot = lots[(i * 2 + j) % lots.length];
             const cond = conditionnements[j % 3];
             const volumeL = Math.round(180 + Math.random() * 100);
-            prodLots.push({
-                id: crypto.randomUUID(),
-                semaineProdId: semaine.id,
-                numeroLot: lot.numero,
-                date: semaine.dateDebut,
-                fruitsTransformesKg: Math.round(volumeL * 4.5),
-                semaineRecolteId: semainesRecolte[i]?.id,
-                volumeHuileL: volumeL,
-                conditionnementId: cond.id,
-                lotId: lot.id,
-                tauxAcidite: 0.5 + Math.random() * 0.3,
-                noteGout: 7 + Math.floor(Math.random() * 3),
-                noteOdeur: 8,
-                noteCouleur: 9
-            });
+            prodLots.push({ id: crypto.randomUUID(), semaineProdId: semaine.id, numeroLot: lot.numero, date: semaine.dateDebut, fruitsTransformesKg: Math.round(volumeL * 4.5), semaineRecolteId: semainesRecolte[i]?.id, volumeHuileL: volumeL, conditionnementId: cond.id, lotId: lot.id, tauxAcidite: 0.5 + Math.random() * 0.3, noteGout: 7 + Math.floor(Math.random() * 3), noteOdeur: 8, noteCouleur: 9 });
         }
     }
     await safeBulkAdd('production_consommation', prodConsommation);
     await safeBulkAdd('production_lot', prodLots);
 
-    // ========== 20. STOCKS D'HUILE ==========
+    // ========== 20. STOCKS HUILE ==========
     const stocks = [];
     for (const site of sites) {
         for (const lot of lots.slice(0, 10)) {
             for (const cond of conditionnements) {
-                stocks.push({
-                    id: crypto.randomUUID(),
-                    siteId: site.id,
-                    lotId: lot.id,
-                    conditionnementId: cond.id,
-                    quantite: 100 + Math.floor(Math.random() * 200)
-                });
+                stocks.push({ id: crypto.randomUUID(), siteId: site.id, lotId: lot.id, conditionnementId: cond.id, quantite: 100 + Math.floor(Math.random() * 200) });
             }
         }
     }
@@ -422,11 +349,10 @@ export async function initTestData() {
     await safeBulkAdd('clients', clients);
 
     // ========== 22. TARIFS ==========
-    const tarifs = [
+    await safeBulkAdd('tarifs', [
         { id: crypto.randomUUID(), code: 'A', devise: 'USD', prixParConditionnement: { [conditionnements[0].id]: 2.5, [conditionnements[1].id]: 11, [conditionnements[2].id]: 50, [conditionnements[3].id]: 380 }, note: 'Tarif standard USD', dateCreation: new Date().toISOString() },
         { id: crypto.randomUUID(), code: 'B', devise: 'CDF', prixParConditionnement: { [conditionnements[0].id]: 6000, [conditionnements[1].id]: 27500, [conditionnements[2].id]: 125000, [conditionnements[3].id]: 950000 }, note: 'Tarif CDF', dateCreation: new Date().toISOString() }
-    ];
-    await safeBulkAdd('tarifs', tarifs);
+    ]);
 
     // ========== 23. TRAVAILLEURS ==========
     const travailleurs = [
@@ -437,8 +363,6 @@ export async function initTestData() {
         { id: crypto.randomUUID(), nom: 'Nkulu', postnom: 'Banza', prenom: 'Albert', date_naissance: '1987-09-18', date_debut: `${ANNEE_COURANTE - 3}-04-01`, departement: 'Production', poste_travail_id: 'Superviseur', salaire_actuel: 250000, devise_salaire: 'CDF', actif: true, nb_personnes_charge: 5, salaire_net_total: 250000, salaire_brut_calcule: 300000, soumis_ipr: true, soumis_cnss: true }
     ];
     await safeBulkAdd('travailleurs', travailleurs);
-
-    // Lier les vendeurs à des travailleurs
     await db.utilisateurs.update(vendeur1.id, { travailleur_id: travailleurs[1].id });
     await db.utilisateurs.update(vendeur2.id, { travailleur_id: travailleurs[1].id });
 
@@ -446,35 +370,24 @@ export async function initTestData() {
     const presences = [];
     for (const t of travailleurs) {
         for (let mois = 1; mois <= MOIS_TOTAL; mois++) {
-            presences.push({
-                id: crypto.randomUUID(),
-                travailleur_id: t.id,
-                annee: ANNEE_COURANTE,
-                mois,
-                jours_vacances: Math.floor(Math.random() * 3),
-                jours_suspension: Math.floor(Math.random() * 2),
-                motif: ''
-            });
+            presences.push({ id: crypto.randomUUID(), travailleur_id: t.id, annee: ANNEE_COURANTE, mois, jours_vacances: Math.floor(Math.random() * 3), jours_suspension: Math.floor(Math.random() * 2), motif: '' });
         }
     }
     await safeBulkAdd('presence_suspension', presences);
 
-    // ========== 25. CAISSES ET SOUS-CAISSES AVEC SEMAINES CLÔTURÉES ==========
+    // ========== 25. CAISSES ET SEMAINES ==========
     const caisseId = crypto.randomUUID();
     await safeBulkAdd('caisses', [{ id: caisseId, nom: 'Caisse Principale', active: true }]);
-
     const sousCaisseUSD = { id: crypto.randomUUID(), caisseId, nom: 'Espèces USD', devise: 'USD', solde_initial: 5000, typePaiement: '1', actif: true };
     const sousCaisseCDF = { id: crypto.randomUUID(), caisseId, nom: 'Espèces CDF', devise: 'CDF', solde_initial: 2000000, typePaiement: '1', actif: true };
     await safeBulkAdd('sous_caisses', [sousCaisseUSD, sousCaisseCDF]);
 
-    // Calculer le lundi de la semaine courante
     const aujourdhuiSem = new Date();
     const jourSemaine = aujourdhuiSem.getDay();
     const diffLundi = jourSemaine === 0 ? 6 : jourSemaine - 1;
     const lundiCourant = new Date(aujourdhuiSem);
     lundiCourant.setDate(aujourdhuiSem.getDate() - diffLundi);
 
-    // Créer les 20 semaines passées CLÔTURÉES
     const semainesCaisse = [];
     const mapSemainesParLundi = {};
     for (let i = 20; i >= 1; i--) {
@@ -482,43 +395,16 @@ export async function initTestData() {
         lundi.setDate(lundiCourant.getDate() - i * 7);
         const dimanche = new Date(lundi);
         dimanche.setDate(lundi.getDate() + 6);
-        const semaine = {
-            id: crypto.randomUUID(),
-            caisseId,
-            dateDebut: lundi.toISOString().slice(0, 10),
-            dateFin: dimanche.toISOString().slice(0, 10),
-            soldeOuvertureUSD: 0,
-            soldeOuvertureCDF: 0,
-            soldeClotureUSD: 0,
-            soldeClotureCDF: 0,
-            estCloturee: true,
-            dateCloture: new Date().toISOString(),
-            commentaireCloture: 'Semaine de test clôturée automatiquement'
-        };
+        const semaine = { id: crypto.randomUUID(), caisseId, dateDebut: lundi.toISOString().slice(0, 10), dateFin: dimanche.toISOString().slice(0, 10), soldeOuvertureUSD: 0, soldeOuvertureCDF: 0, soldeClotureUSD: 0, soldeClotureCDF: 0, estCloturee: true, dateCloture: new Date().toISOString(), commentaireCloture: 'Semaine de test clôturée automatiquement' };
         semainesCaisse.push(semaine);
         mapSemainesParLundi[lundi.toISOString().slice(0, 10)] = semaine;
     }
-
-    // Semaine courante (ouverte)
     const dateFinCourante = new Date(lundiCourant);
     dateFinCourante.setDate(lundiCourant.getDate() + 6);
-    const semaineCourante = {
-        id: crypto.randomUUID(),
-        caisseId,
-        dateDebut: lundiCourant.toISOString().slice(0, 10),
-        dateFin: dateFinCourante.toISOString().slice(0, 10),
-        soldeOuvertureUSD: 5000,
-        soldeOuvertureCDF: 2000000,
-        soldeClotureUSD: 0,
-        soldeClotureCDF: 0,
-        estCloturee: false,
-        dateCloture: null,
-        commentaireCloture: ''
-    };
+    const semaineCourante = { id: crypto.randomUUID(), caisseId, dateDebut: lundiCourant.toISOString().slice(0, 10), dateFin: dateFinCourante.toISOString().slice(0, 10), soldeOuvertureUSD: 5000, soldeOuvertureCDF: 2000000, soldeClotureUSD: 0, soldeClotureCDF: 0, estCloturee: false, dateCloture: null, commentaireCloture: '' };
     semainesCaisse.push(semaineCourante);
     await safeBulkAdd('semaines_caisse', semainesCaisse);
 
-    // Fonction utilitaire : trouver la semaine correspondant à une date
     function trouverSemaine(dateStr) {
         const d = new Date(dateStr);
         const j = d.getDay();
@@ -529,19 +415,62 @@ export async function initTestData() {
         return mapSemainesParLundi[key] || semaineCourante;
     }
 
-    // Associer utilisateurs à la caisse
     await safeBulkAdd('caisse_utilisateurs', [
         { id: crypto.randomUUID(), caisseId, utilisateurId: adminUser.id, peutCloturer: true },
         { id: crypto.randomUUID(), caisseId, utilisateurId: caissier.id, peutCloturer: false }
     ]);
 
-    // ========== 26. FACTURES AVEC VENDEUR ET PAIEMENTS ==========
+    // ========== 26. BUDGET COMPLET 12 MOIS ==========
+    // Budget mensuel stable (CDF)
+    const budgetMensuelParPoste = {
+        'Vente huile': 5000000,
+        'Transport régimes': 400000,
+        'Carburant': 250000,
+        'Salaire - Production': 450000,
+        'Salaire - Comptabilité': 300000,
+        'Salaire - Vente': 200000,
+        'Salaire - Logistique': 180000,
+        'Maintenance': 150000,
+        'Loyer': 100000,
+        'Fournitures bureau': 80000,
+        'Honoraires comptables': 50000
+    };
+
+    const budgetData = {};
+    for (let p of postesBudget) {
+        budgetData[p.id] = Array(12).fill(0);
+        const montantMensuel = budgetMensuelParPoste[p.nom] || 0;
+        // Croissance légère sur l'année (sauf salaires)
+        for (let m = 0; m < 12; m++) {
+            let montant = montantMensuel;
+            if (p.nom === 'Vente huile') {
+                // Croissance de 2% par mois
+                montant = Math.round(montantMensuel * (1 + m * 0.02));
+            } else if (p.nom.includes('Salaire') || p.nom === 'Loyer' || p.nom === 'Honoraires comptables') {
+                // Fixe
+                montant = montantMensuel;
+            } else {
+                // Légère variation
+                montant = Math.round(montantMensuel * (0.95 + Math.random() * 0.1));
+            }
+            budgetData[p.id][m] = montant;
+        }
+    }
+    await db.budget_versions.add({
+        id: crypto.randomUUID(),
+        annee: ANNEE_COURANTE,
+        version: 1,
+        date_creation: new Date().toISOString(),
+        utilisateur_id: adminUser.id,
+        utilisateur_nom: adminUser.nom,
+        donnees: budgetData
+    });
+    console.log("✅ Budget 12 mois créé.");
+
+    // ========== 27. FACTURES ==========
     const factures = [];
     const factureLignes = [];
-    const paiementsCaisse = [];
-
     const vendeursList = [vendeur1, vendeur2];
-
     for (let mois = 0; mois < MOIS_TOTAL; mois++) {
         const nbFactures = 4 + Math.floor(Math.random() * 3);
         for (let i = 0; i < nbFactures; i++) {
@@ -556,215 +485,145 @@ export async function initTestData() {
             const factureId = crypto.randomUUID();
             const devise = Math.random() > 0.5 ? 'CDF' : 'USD';
             const totalHT = devise === 'CDF' ? 100000 + Math.floor(Math.random() * 300000) : 40 + Math.floor(Math.random() * 200);
-
             const randomStatut = Math.random();
-            let statutPaiement, statutLivraison, montantPaye;
-            if (randomStatut < 0.7) {
-                statutPaiement = 'payée';
-                montantPaye = totalHT;
-            } else if (randomStatut < 0.9) {
-                statutPaiement = 'partiel';
-                montantPaye = totalHT * 0.5;
-            } else {
-                statutPaiement = 'en_attente';
-                montantPaye = 0;
-            }
-            statutLivraison = 'livrée';
+            let statutPaiement, montantPaye;
+            if (randomStatut < 0.7) { statutPaiement = 'payée'; montantPaye = totalHT; }
+            else if (randomStatut < 0.9) { statutPaiement = 'partiel'; montantPaye = totalHT * 0.5; }
+            else { statutPaiement = 'en_attente'; montantPaye = 0; }
 
-            factures.push({
-                id: factureId,
-                numero,
-                date,
-                echeance: '30j',
-                dateEcheance: new Date(new Date(date).getTime() + 30 * 86400000).toISOString().slice(0, 10),
-                clientId: client.id,
-                vendeurId: vendeur.id,
-                siteId: sites[0].id,
-                devise,
-                tarif: devise === 'CDF' ? 'B' : 'A',
-                remise: 0,
-                remiseMontant: 0,
-                remiseType: 'amount',
-                totalHT,
-                statutLivraison,
-                statutPaiement,
-                typeFacture: 'huile',
-                blSelectionne: true,
-                dateLivraison: date,
-                datePaiement: statutPaiement === 'payée' ? date : null,
-                notes: '',
-                dateCreation: new Date().toISOString()
-            });
+            factures.push({ id: factureId, numero, date, echeance: '30j', dateEcheance: new Date(new Date(date).getTime() + 30 * 86400000).toISOString().slice(0, 10), clientId: client.id, vendeurId: vendeur.id, siteId: sites[0].id, devise, tarif: devise === 'CDF' ? 'B' : 'A', remise: 0, remiseMontant: 0, remiseType: 'amount', totalHT, statutLivraison: 'livrée', statutPaiement, typeFacture: 'huile', blSelectionne: true, dateLivraison: date, datePaiement: statutPaiement === 'payée' ? date : null, notes: '', dateCreation: new Date().toISOString() });
 
             for (let j = 0; j < 2; j++) {
                 const cond = conditionnements[j];
                 const qte = 5 + Math.floor(Math.random() * 15);
-                const pu = devise === 'CDF'
-                    ? (cond.capaciteL === 1 ? 6000 : cond.capaciteL === 5 ? 27500 : 125000)
-                    : (cond.capaciteL === 1 ? 2.5 : cond.capaciteL === 5 ? 11 : 50);
-                factureLignes.push({
-                    id: crypto.randomUUID(),
-                    factureId,
-                    conditionnementId: cond.id,
-                    quantite: qte,
-                    prixUnitaire: pu,
-                    prixTotal: qte * pu,
-                    remiseLigne: 0
-                });
-            }
-
-            // Créer le paiement si la facture est payée ou partielle
-            if (montantPaye > 0) {
-                const sc = devise === 'USD' ? sousCaisseUSD : sousCaisseCDF;
-                const tauxJour = 2500 + Math.floor(Math.random() * 50);
-                const montantCDF = devise === 'CDF' ? montantPaye : montantPaye * tauxJour;
-                const montantUSD = devise === 'USD' ? montantPaye : montantPaye / tauxJour;
-                const semaineConcernee = trouverSemaine(date);
-
-                paiementsCaisse.push({
-                    id: crypto.randomUUID(),
-                    caisseId,
-                    sousCaisseId: sc.id,
-                    semaineId: semaineConcernee.id,
-                    date,
-                    type: 'entree',
-                    montant: montantPaye,
-                    devise,
-                    montant_cdf: montantCDF,
-                    montant_usd: montantUSD,
-                    posteBudgetaire: 'Vente huile',
-                    factureId,
-                    justificatif: `Paiement facture ${numero}`,
-                    commentaire: statutPaiement === 'partiel' ? 'Paiement partiel' : 'Paiement complet',
-                    designation: `Paiement facture ${numero}`,
-                    status: 'validé',
-                    aJustifier: false,
-                    estCorrection: false,
-                    typeCorrection: null,
-                    remplaceParCorrection: false,
-                    annule: false,
-                    parentId: null,
-                    correctionParentId: null,
-                    montant_converti_facture: montantPaye,
-                    dateCreation: new Date().toISOString()
-                });
+                const pu = devise === 'CDF' ? (cond.capaciteL === 1 ? 6000 : cond.capaciteL === 5 ? 27500 : 125000) : (cond.capaciteL === 1 ? 2.5 : cond.capaciteL === 5 ? 11 : 50);
+                factureLignes.push({ id: crypto.randomUUID(), factureId, conditionnementId: cond.id, quantite: qte, prixUnitaire: pu, prixTotal: qte * pu, remiseLigne: 0 });
             }
         }
     }
     await safeBulkAdd('factures', factures);
     await safeBulkAdd('facture_lignes', factureLignes);
-    console.log(`✅ ${paiementsCaisse.length} paiements de factures à créer.`);
 
-    // ========== 27. AUTRES MOUVEMENTS DE CAISSE (dépenses) ==========
-    const mouvementsDivers = [];
+    // ========== 28. MOUVEMENTS DE CAISSE (réels proches du budget) ==========
+    const tousMouvementsCaisse = [];
     const postesSortie = postesBudget.filter(p => p.type === 'sortie' && !p.systeme);
+    const posteVenteHuile = postesBudget.find(p => p.nom === 'Vente huile');
 
     for (let mois = 0; mois < MOIS_TOTAL; mois++) {
-        const nbMvts = 5 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < nbMvts; i++) {
+        // Pour chaque poste budgétaire : générer 1 à 3 mouvements réels proches du budget
+        for (let p of postesSortie) {
+            const budgetMois = budgetData[p.id][mois];
+            // Génère des mouvements qui totalisent entre 80% et 120% du budget
+            const ratioTotal = 0.8 + Math.random() * 0.4;
+            const totalMois = Math.round(budgetMois * ratioTotal);
+
+            const nbMvts = 1 + Math.floor(Math.random() * 3);
+            let reste = totalMois;
+            for (let i = 0; i < nbMvts; i++) {
+                let montant;
+                if (i === nbMvts - 1) {
+                    montant = reste;
+                } else {
+                    montant = Math.round(reste / (nbMvts - i) * (0.6 + Math.random() * 0.8));
+                    if (montant > reste) montant = reste;
+                }
+                reste -= montant;
+
+                const jourMax = (mois === MOIS_TOTAL - 1) ? DATE_LIMITE.getDate() : new Date(ANNEE_COURANTE, mois + 1, 0).getDate();
+                const jour = 1 + Math.floor(Math.random() * jourMax);
+                const date = `${ANNEE_COURANTE}-${String(mois + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
+                if (new Date(date) > DATE_LIMITE) continue;
+
+                const devise = 'CDF';
+                const sc = sousCaisseCDF;
+                const tauxJour = 2500 + Math.floor(Math.random() * 50);
+                const semaineConcernee = trouverSemaine(date);
+
+                tousMouvementsCaisse.push({
+                    id: crypto.randomUUID(), caisseId, sousCaisseId: sc.id, semaineId: semaineConcernee.id,
+                    date, type: 'sortie', montant, devise, montant_cdf: montant, montant_usd: montant / tauxJour,
+                    posteBudgetaire: p.nom, factureId: null,
+                    justificatif: `Dépense ${p.nom}`, commentaire: '', designation: `Dépense ${p.nom}`,
+                    status: 'validé', aJustifier: false, estCorrection: false, typeCorrection: null,
+                    remplaceParCorrection: false, annule: false, parentId: null, correctionParentId: null,
+                    dateCreation: new Date().toISOString()
+                });
+            }
+        }
+
+        // Revenus : paiements de factures pour ce mois (rattachés au budget Vente huile)
+        const facturesMois = factures.filter(f => {
+            const d = new Date(f.date);
+            return d.getFullYear() === ANNEE_COURANTE && d.getMonth() === mois;
+        });
+        for (let f of facturesMois) {
+            if (f.statutPaiement === 'en_attente') continue;
+            const montantPaye = f.statutPaiement === 'payée' ? f.totalHT : f.totalHT * 0.5;
+            const sc = f.devise === 'USD' ? sousCaisseUSD : sousCaisseCDF;
+            const tauxJour = 2500 + Math.floor(Math.random() * 50);
+            const montantCDF = f.devise === 'CDF' ? montantPaye : montantPaye * tauxJour;
+            const montantUSD = f.devise === 'USD' ? montantPaye : montantPaye / tauxJour;
+            const semaineConcernee = trouverSemaine(f.date);
+
+            tousMouvementsCaisse.push({
+                id: crypto.randomUUID(), caisseId, sousCaisseId: sc.id, semaineId: semaineConcernee.id,
+                date: f.date, type: 'entree', montant: montantPaye, devise: f.devise,
+                montant_cdf: montantCDF, montant_usd: montantUSD,
+                posteBudgetaire: 'Vente huile', factureId: f.id,
+                justificatif: `Paiement facture ${f.numero}`,
+                commentaire: f.statutPaiement === 'partiel' ? 'Paiement partiel' : 'Paiement complet',
+                designation: `Paiement facture ${f.numero}`,
+                status: 'validé', aJustifier: false, estCorrection: false, typeCorrection: null,
+                remplaceParCorrection: false, annule: false, parentId: null, correctionParentId: null,
+                montant_converti_facture: montantPaye, dateCreation: new Date().toISOString()
+            });
+        }
+
+        // Complément de revenus pour atteindre le budget Vente huile du mois
+        let totalRevenusMois = facturesMois.reduce((sum, f) => {
+            if (f.statutPaiement === 'en_attente') return sum;
+            return sum + (f.statutPaiement === 'payée' ? f.totalHT : f.totalHT * 0.5);
+        }, 0);
+        // Conversion en CDF pour comparaison
+        const budgetVenteMois = budgetData[posteVenteHuile.id][mois];
+        const manque = Math.max(0, budgetVenteMois * (0.9 + Math.random() * 0.2) - totalRevenusMois);
+        if (manque > 0) {
             const jourMax = (mois === MOIS_TOTAL - 1) ? DATE_LIMITE.getDate() : new Date(ANNEE_COURANTE, mois + 1, 0).getDate();
             const jour = 1 + Math.floor(Math.random() * jourMax);
             const date = `${ANNEE_COURANTE}-${String(mois + 1).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
-            if (new Date(date) > DATE_LIMITE) continue;
-
-            const poste = postesSortie[Math.floor(Math.random() * postesSortie.length)];
-            const devise = Math.random() > 0.5 ? 'USD' : 'CDF';
-            const montant = devise === 'USD' ? 50 + Math.floor(Math.random() * 300) : 20000 + Math.floor(Math.random() * 200000);
-            const sc = devise === 'USD' ? sousCaisseUSD : sousCaisseCDF;
-            const tauxJour = 2500 + Math.floor(Math.random() * 50);
-            const montantCDF = devise === 'CDF' ? montant : montant * tauxJour;
-            const montantUSD = devise === 'USD' ? montant : montant / tauxJour;
-            const semaineConcernee = trouverSemaine(date);
-
-            mouvementsDivers.push({
-                id: crypto.randomUUID(),
-                caisseId,
-                sousCaisseId: sc.id,
-                semaineId: semaineConcernee.id,
-                date,
-                type: 'sortie',
-                montant,
-                devise,
-                montant_cdf: montantCDF,
-                montant_usd: montantUSD,
-                posteBudgetaire: poste.nom,
-                factureId: null,
-                justificatif: `Dépense ${poste.nom}`,
-                commentaire: '',
-                designation: `Dépense ${poste.nom}`,
-                status: 'validé',
-                aJustifier: false,
-                estCorrection: false,
-                typeCorrection: null,
-                remplaceParCorrection: false,
-                annule: false,
-                parentId: null,
-                correctionParentId: null,
-                dateCreation: new Date().toISOString()
-            });
+            if (new Date(date) <= DATE_LIMITE) {
+                const tauxJour = 2500 + Math.floor(Math.random() * 50);
+                const semaineConcernee = trouverSemaine(date);
+                tousMouvementsCaisse.push({
+                    id: crypto.randomUUID(), caisseId, sousCaisseId: sousCaisseCDF.id, semaineId: semaineConcernee.id,
+                    date, type: 'entree', montant: manque, devise: 'CDF', montant_cdf: manque, montant_usd: manque / tauxJour,
+                    posteBudgetaire: 'Vente huile', factureId: null,
+                    justificatif: 'Ventes comptoir', commentaire: '', designation: 'Ventes comptoir',
+                    status: 'validé', aJustifier: false, estCorrection: false, typeCorrection: null,
+                    remplaceParCorrection: false, annule: false, parentId: null, correctionParentId: null,
+                    dateCreation: new Date().toISOString()
+                });
+            }
         }
     }
-
-    // Ajouter paiements + dépenses
-    const tousMouvementsCaisse = [...paiementsCaisse, ...mouvementsDivers];
     await safeBulkAdd('mouvementsCaisse', tousMouvementsCaisse);
-    console.log(`✅ Total ${tousMouvementsCaisse.length} mouvements de caisse créés.`);
+    console.log(`✅ ${tousMouvementsCaisse.length} mouvements de caisse créés.`);
 
-    // ========== 28. BONS DE LIVRAISON ==========
+    // ========== 29. BONS DE LIVRAISON ==========
     const bonsLivraison = [];
     const blLignes = [];
     for (let i = 0; i < Math.min(20, factures.length); i++) {
         const fact = factures[i];
         if (!fact) break;
         const blId = crypto.randomUUID();
-        bonsLivraison.push({
-            id: blId,
-            numero: `BL${(i + 1).toString().padStart(3, '0')}/${ANNEE_COURANTE.toString().slice(-2)}`,
-            factureId: fact.id,
-            date: fact.date,
-            siteId: sites[0].id,
-            statut: 'livré',
-            vendeurId: fact.vendeurId,
-            superviseurValidation: null,
-            notes: ''
-        });
+        bonsLivraison.push({ id: blId, numero: `BL${(i + 1).toString().padStart(3, '0')}/${ANNEE_COURANTE.toString().slice(-2)}`, factureId: fact.id, date: fact.date, siteId: sites[0].id, statut: 'livré', vendeurId: fact.vendeurId, superviseurValidation: null, notes: '' });
         const lignesFact = factureLignes.filter(l => l.factureId === fact.id);
         for (let j = 0; j < lignesFact.length; j++) {
-            blLignes.push({
-                id: crypto.randomUUID(),
-                blId,
-                lotId: lots[j % lots.length].id,
-                conditionnementId: lignesFact[j].conditionnementId,
-                quantiteLivree: lignesFact[j].quantite
-            });
+            blLignes.push({ id: crypto.randomUUID(), blId, lotId: lots[j % lots.length].id, conditionnementId: lignesFact[j].conditionnementId, quantiteLivree: lignesFact[j].quantite });
         }
     }
     await safeBulkAdd('bons_livraison', bonsLivraison);
     await safeBulkAdd('bl_lignes', blLignes);
-
-    // ========== 29. BUDGET ==========
-    const budgetData = {};
-    for (let p of postesBudget) {
-        budgetData[p.id] = Array(12).fill(0);
-        for (let m = 0; m < MOIS_TOTAL; m++) {
-            if (p.type === 'entree') {
-                budgetData[p.id][m] = 5000000 + m * 300000;
-            } else {
-                budgetData[p.id][m] = 300000 + m * 50000;
-                if (p.nom === 'Carburant') budgetData[p.id][m] = 200000;
-                if (p.nom === 'Transport régimes') budgetData[p.id][m] = 350000;
-            }
-        }
-    }
-    await db.budget_versions.add({
-        id: crypto.randomUUID(),
-        annee: ANNEE_COURANTE,
-        version: 1,
-        date_creation: new Date().toISOString(),
-        utilisateur_id: adminUser.id,
-        utilisateur_nom: adminUser.nom,
-        donnees: budgetData
-    });
 
     // ========== 30. OBJECTIFS MENSUELS ==========
     const objectifs = [
@@ -782,38 +641,12 @@ export async function initTestData() {
         { domaine: 'ConsoEssence', valeurs: Array(12).fill(50) }
     ];
     for (const obj of objectifs) {
-        await db.objectifs_mensuels.add({
-            id: crypto.randomUUID(),
-            annee: ANNEE_COURANTE,
-            domaine: obj.domaine,
-            vendeur_id: null,
-            donnees: obj.valeurs
-        });
+        await db.objectifs_mensuels.add({ id: crypto.randomUUID(), annee: ANNEE_COURANTE, domaine: obj.domaine, vendeur_id: null, donnees: obj.valeurs });
     }
-
-    // Objectifs par vendeur (pour bonus)
     for (const vendeur of vendeursList) {
-        await db.objectifs_mensuels.add({
-            id: crypto.randomUUID(),
-            annee: ANNEE_COURANTE,
-            domaine: 'BonusVolumeMin',
-            vendeur_id: vendeur.id,
-            donnees: Array(12).fill(200)
-        });
-        await db.objectifs_mensuels.add({
-            id: crypto.randomUUID(),
-            annee: ANNEE_COURANTE,
-            domaine: 'BonusPrixMin',
-            vendeur_id: vendeur.id,
-            donnees: Array(12).fill(2500)
-        });
-        await db.objectifs_mensuels.add({
-            id: crypto.randomUUID(),
-            annee: ANNEE_COURANTE,
-            domaine: 'BonusParLitre',
-            vendeur_id: vendeur.id,
-            donnees: Array(12).fill(50)
-        });
+        await db.objectifs_mensuels.add({ id: crypto.randomUUID(), annee: ANNEE_COURANTE, domaine: 'BonusVolumeMin', vendeur_id: vendeur.id, donnees: Array(12).fill(200) });
+        await db.objectifs_mensuels.add({ id: crypto.randomUUID(), annee: ANNEE_COURANTE, domaine: 'BonusPrixMin', vendeur_id: vendeur.id, donnees: Array(12).fill(2500) });
+        await db.objectifs_mensuels.add({ id: crypto.randomUUID(), annee: ANNEE_COURANTE, domaine: 'BonusParLitre', vendeur_id: vendeur.id, donnees: Array(12).fill(50) });
     }
 
     // ========== 31. PROJETS ==========
@@ -827,15 +660,7 @@ export async function initTestData() {
     for (const t of travailleurs) {
         for (let m = 1; m <= MOIS_TOTAL; m++) {
             if (Math.random() > 0.7) {
-                primes.push({
-                    id: crypto.randomUUID(),
-                    travailleur_id: t.id,
-                    annee: ANNEE_COURANTE,
-                    mois: m,
-                    montant: Math.round(10000 + Math.random() * 30000),
-                    libelle: `Prime ${t.departement}`,
-                    payee: Math.random() > 0.5
-                });
+                primes.push({ id: crypto.randomUUID(), travailleur_id: t.id, annee: ANNEE_COURANTE, mois: m, montant: Math.round(10000 + Math.random() * 30000), libelle: `Prime ${t.departement}`, payee: Math.random() > 0.5 });
             }
         }
     }
@@ -843,14 +668,13 @@ export async function initTestData() {
 
     console.log("✅ Données de test générées avec succès !");
     alert(
-        "✅ Données de test générées avec succès !\n\n" +
-        "Comptes disponibles :\n" +
-        "• admin / admin123 (superviseur)\n" +
-        "• vente / vente (superviseur vente)\n" +
-        "• pierre / pierre (vendeur)\n" +
-        "• caissier / caisse (caissier)\n" +
-        "• prod / prod (superviseur huilerie)\n\n" +
-        "Vous pouvez maintenant tester l'application."
+        "✅ Données de test générées !\n\n" +
+        "Comptes :\n" +
+        "• admin / admin123\n" +
+        "• vente / vente\n" +
+        "• pierre / pierre\n" +
+        "• caissier / caisse\n" +
+        "• prod / prod"
     );
     location.reload();
 }

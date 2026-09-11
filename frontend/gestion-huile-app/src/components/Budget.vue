@@ -2,7 +2,6 @@
     <div class="container-fluid">
         <h2 class="mb-4" style="color: #ED1C24;">Budgets</h2>
 
-        <!-- Sélecteur de devise global -->
         <div class="card mb-3">
             <div class="card-body py-2">
                 <div class="row align-items-center">
@@ -21,7 +20,6 @@
             </div>
         </div>
 
-        <!-- Onglets -->
         <ul class="nav nav-tabs">
             <li class="nav-item">
                 <a class="nav-link" :class="{ active: onglet === 'budget' }" href="#"
@@ -186,8 +184,33 @@
 
         <!-- ==================== ONGLET SUIVI ==================== -->
         <div v-if="onglet === 'suivi'" class="mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Tableau de bord budgétaire</h5>
+            <!-- Barre d'outils : sélecteur de vue + année + export -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Tableau de bord budgétaire</h5>
+                    <div class="btn-group ms-2" role="group">
+                        <button type="button" class="btn btn-sm"
+                            :class="vueKPI === 'mois' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="vueKPI = 'mois'">
+                            Mois
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="vueKPI === 'cumul' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="vueKPI = 'cumul'">
+                            Cumul
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="vueKPI === 'annee' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="vueKPI = 'annee'">
+                            Année
+                        </button>
+                    </div>
+                    <span class="text-muted ms-2">
+                        <small v-if="vueKPI === 'mois'">Mois : {{ moisNomsComplets[new Date().getMonth()] }}</small>
+                        <small v-else-if="vueKPI === 'cumul'">Janvier → {{ moisNomsComplets[new Date().getMonth()] }}</small>
+                        <small v-else>Total annuel</small>
+                    </span>
+                </div>
                 <div class="d-flex gap-2">
                     <select v-model="anneeSuivi" class="form-select form-select-sm w-auto">
                         <option v-for="a in anneesDisponibles" :key="a" :value="a">{{ a }}</option>
@@ -199,74 +222,95 @@
             </div>
 
             <div class="row mb-4" id="suivi-budget-table">
+                <!-- KPI CA -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">CA réalisé / prévu</h6>
-                                    <h3 class="mb-1">{{ formatMontant(totalRevenusRealiseAffichage, deviseAffichage) }}</h3>
-                                    <small class="text-muted">sur {{ formatMontant(totalRevenusPrevisionAffichage, deviseAffichage) }}</small>
+                                    <h6 class="text-muted mb-2">
+                                        CA réalisé / prévu
+                                        <span class="badge bg-secondary ms-1">{{ vueKPILabel }}</span>
+                                    </h6>
+                                    <h3 class="mb-1">{{ formatMontant(kpiRevenusRealise, deviseAffichage) }}</h3>
+                                    <small class="text-muted">sur {{ formatMontant(kpiRevenusPrevu, deviseAffichage) }}</small>
                                 </div>
-                                <div class="kpi-icon" :class="getPourcentageClassRevenus(pourcentageTotalRevenus)"><i class="bi bi-graph-up-arrow"></i></div>
+                                <div class="kpi-icon" :class="getPourcentageClassRevenus(kpiPctRevenus)"><i class="bi bi-graph-up-arrow"></i></div>
                             </div>
                             <div class="progress mt-3" style="height: 8px;">
-                                <div class="progress-bar" :class="getBarClassRevenus(pourcentageTotalRevenus)"
-                                    :style="{ width: Math.min(pourcentageTotalRevenus, 100) + '%' }"></div>
+                                <div class="progress-bar" :class="getBarClassRevenus(kpiPctRevenus)"
+                                    :style="{ width: Math.min(kpiPctRevenus, 100) + '%' }"></div>
                             </div>
-                            <div class="text-end mt-1"><strong>{{ pourcentageTotalRevenus }}%</strong></div>
+                            <div class="text-end mt-1"><strong>{{ kpiPctRevenus }}%</strong></div>
                         </div>
                     </div>
                 </div>
+                <!-- KPI Dépenses -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Dépenses réalisées / prévues</h6>
-                                    <h3 class="mb-1">{{ formatMontant(totalDepensesRealiseAffichage, deviseAffichage) }}</h3>
-                                    <small class="text-muted">sur {{ formatMontant(totalDepensesPrevisionAffichage, deviseAffichage) }}</small>
+                                    <h6 class="text-muted mb-2">
+                                        Dépenses réalisées / prévues
+                                        <span class="badge bg-secondary ms-1">{{ vueKPILabel }}</span>
+                                    </h6>
+                                    <h3 class="mb-1">{{ formatMontant(kpiDepensesRealise, deviseAffichage) }}</h3>
+                                    <small class="text-muted">sur {{ formatMontant(kpiDepensesPrevu, deviseAffichage) }}</small>
                                 </div>
-                                <div class="kpi-icon" :class="getPourcentageClassDepenses(pourcentageTotalDepenses)"><i class="bi bi-cash-coin"></i></div>
+                                <div class="kpi-icon" :class="getPourcentageClassDepenses(kpiPctDepenses)"><i class="bi bi-cash-coin"></i></div>
                             </div>
                             <div class="progress mt-3" style="height: 8px;">
-                                <div class="progress-bar" :class="getBarClassDepenses(pourcentageTotalDepenses)"
-                                    :style="{ width: Math.min(pourcentageTotalDepenses, 100) + '%' }"></div>
+                                <div class="progress-bar" :class="getBarClassDepenses(kpiPctDepenses)"
+                                    :style="{ width: Math.min(kpiPctDepenses, 100) + '%' }"></div>
                             </div>
-                            <div class="text-end mt-1"><strong>{{ pourcentageTotalDepenses }}%</strong></div>
+                            <div class="text-end mt-1"><strong>{{ kpiPctDepenses }}%</strong></div>
                         </div>
                     </div>
                 </div>
+                <!-- KPI Variation -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Variation de trésorerie</h6>
-                                    <h3 class="mb-1" :class="variationTotaleAffichage >= 0 ? 'text-success' : 'text-danger'">{{ formatMontant(variationTotaleAffichage, deviseAffichage) }}</h3>
-                                    <small class="text-muted">Prévu : {{ formatMontant(variationTotalePrevue, deviseAffichage) }}</small>
+                                    <h6 class="text-muted mb-2">
+                                        Variation de trésorerie
+                                        <span class="badge bg-secondary ms-1">{{ vueKPILabel }}</span>
+                                    </h6>
+                                    <h3 class="mb-1" :class="kpiVariation >= 0 ? 'text-success' : 'text-danger'">
+                                        {{ formatMontant(kpiVariation, deviseAffichage) }}
+                                    </h3>
+                                    <small class="text-muted">Prévu : {{ formatMontant(kpiVariationPrevue, deviseAffichage) }}</small>
                                 </div>
-                                <div class="kpi-icon" :class="variationTotaleAffichage >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"><i class="bi bi-wallet2"></i></div>
+                                <div class="kpi-icon" :class="kpiVariation >= 0 ? 'bg-success text-white' : 'bg-danger text-white'"><i class="bi bi-wallet2"></i></div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <!-- KPI Postes en dépassement -->
                 <div class="col-md-3 mb-3">
                     <div class="card kpi-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Postes en dépassement</h6>
-                                    <h3 class="mb-1" :class="postesEnDepassement.length > 0 ? 'text-danger' : 'text-success'">{{ postesEnDepassement.length }}</h3>
+                                    <h6 class="text-muted mb-2">
+                                        Postes en dépassement
+                                        <span class="badge bg-secondary ms-1">{{ vueKPILabel }}</span>
+                                    </h6>
+                                    <h3 class="mb-1" :class="kpiPostesEnDepassement.length > 0 ? 'text-danger' : 'text-success'">
+                                        {{ kpiPostesEnDepassement.length }}
+                                    </h3>
                                     <small class="text-muted">sur {{ postesBudgetaires.length }} postes</small>
                                 </div>
-                                <div class="kpi-icon" :class="postesEnDepassement.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'"><i class="bi bi-exclamation-triangle"></i></div>
+                                <div class="kpi-icon" :class="kpiPostesEnDepassement.length > 0 ? 'bg-danger text-white' : 'bg-success text-white'"><i class="bi bi-exclamation-triangle"></i></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Graphiques -->
             <div class="row mb-4">
                 <div class="col-md-6 mb-3">
                     <div class="card h-100">
@@ -282,6 +326,7 @@
                 </div>
             </div>
 
+            <!-- Tableau synthèse -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-table"></i> Synthèse annuelle par poste</span>
@@ -392,8 +437,12 @@
         <!-- ==================== ONGLET TRÉSORERIE ==================== -->
         <div v-if="onglet === 'tresorerie'" class="mt-3">
             <div class="card mb-3">
-                <div class="card-header">
-                    <i class="bi bi-cash-stack"></i> Trésorerie combinée : passé (réel) + futur (budget)
+                <div class="card-header d-flex justify-content-between">
+                    <span><i class="bi bi-cash-stack"></i> Trésorerie combinée : passé (réel) + futur (budget)</span>
+                    <div class="d-flex gap-3">
+                        <span><i class="bi bi-circle-fill text-success"></i> Réel</span>
+                        <span><i class="bi bi-circle-fill text-primary"></i> Projeté</span>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row mb-3 align-items-end">
@@ -412,7 +461,8 @@
                                     @input="formatInputBudget($event)"
                                     @blur="updateSoldeInitial($event.target.value)">
                                 <button class="btn btn-outline-secondary" type="button"
-                                    @click="modeManuelSoldeInitial = !modeManuelSoldeInitial">
+                                    @click="modeManuelSoldeInitial = !modeManuelSoldeInitial"
+                                    :title="modeManuelSoldeInitial ? 'Revenir au solde calculé automatiquement' : 'Définir manuellement'">
                                     <i :class="modeManuelSoldeInitial ? 'bi bi-arrow-counterclockwise' : 'bi bi-pencil'"></i>
                                 </button>
                             </div>
@@ -423,13 +473,12 @@
                             </div>
                         </div>
                         <div class="col-md-4 d-flex gap-2 align-items-center">
-                            <button class="btn btn-outline-primary" @click="recalculerSoldeInitial">
+                            <button class="btn btn-outline-primary" @click="recalculerSoldeInitial" title="Recalcule le solde d'ouverture à partir des mouvements réels de l'année précédente et relance toute la projection">
                                 <i class="bi bi-arrow-repeat"></i> Recalculer
                             </button>
                         </div>
                     </div>
 
-                    <!-- Cartes indicateurs -->
                     <div class="row mb-3">
                         <div class="col-md-3">
                             <div class="card border-primary">
@@ -476,7 +525,6 @@
                         </div>
                     </div>
 
-                    <!-- Graphique -->
                     <div class="row mb-3">
                         <div class="col-md-12">
                             <div class="chart-wrapper" style="height: 350px;">
@@ -485,7 +533,6 @@
                         </div>
                     </div>
 
-                    <!-- Tableau combiné -->
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm align-middle">
                             <thead>
@@ -568,6 +615,8 @@ export default {
             showHistorique: false,
             modificationsNonSauvegardees: false,
 
+            vueKPI: 'annee',
+
             previsionParPosteMois: {},
             realiseParPosteMois: {},
             pourcentagePosteMois: {},
@@ -594,6 +643,104 @@ export default {
         postesDepenses() { return this.postesBudgetaires.filter(p => p.type === 'sortie'); },
         postesRevenus() { return this.postesBudgetaires.filter(p => p.type === 'entree'); },
 
+        vueKPILabel() {
+            if (this.vueKPI === 'mois') return 'Mois';
+            if (this.vueKPI === 'cumul') return 'Cumul';
+            return 'Année';
+        },
+        moisCourantIndex() {
+            const maintenant = new Date();
+            if (this.anneeSuivi < maintenant.getFullYear()) return 11;
+            if (this.anneeSuivi > maintenant.getFullYear()) return -1;
+            return maintenant.getMonth();
+        },
+
+        // ---------- KPI selon la vue ----------
+        kpiRevenusRealise() {
+            if (this.vueKPI === 'mois') {
+                const m = this.moisCourantIndex;
+                return m >= 0 ? (this.totalRevenusRealiseMoisAffichage[m] || 0) : 0;
+            } else if (this.vueKPI === 'cumul') {
+                const m = this.moisCourantIndex;
+                return this.totalRevenusRealiseMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
+            }
+            return this.totalRevenusRealiseAffichage;
+        },
+        kpiRevenusPrevu() {
+            if (this.vueKPI === 'mois') {
+                const m = this.moisCourantIndex;
+                return m >= 0 ? (this.totalRevenusPrevisionMoisAffichage[m] || 0) : 0;
+            } else if (this.vueKPI === 'cumul') {
+                const m = this.moisCourantIndex;
+                return this.totalRevenusPrevisionMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
+            }
+            return this.totalRevenusPrevisionAffichage;
+        },
+        kpiPctRevenus() {
+            const prev = this.kpiRevenusPrevu;
+            const real = this.kpiRevenusRealise;
+            return prev === 0 ? 0 : Math.round((real / prev) * 100);
+        },
+
+        kpiDepensesRealise() {
+            if (this.vueKPI === 'mois') {
+                const m = this.moisCourantIndex;
+                return m >= 0 ? (this.totalDepensesRealiseMoisAffichage[m] || 0) : 0;
+            } else if (this.vueKPI === 'cumul') {
+                const m = this.moisCourantIndex;
+                return this.totalDepensesRealiseMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
+            }
+            return this.totalDepensesRealiseAffichage;
+        },
+        kpiDepensesPrevu() {
+            if (this.vueKPI === 'mois') {
+                const m = this.moisCourantIndex;
+                return m >= 0 ? (this.totalDepensesPrevisionMoisAffichage[m] || 0) : 0;
+            } else if (this.vueKPI === 'cumul') {
+                const m = this.moisCourantIndex;
+                return this.totalDepensesPrevisionMoisAffichage.slice(0, m + 1).reduce((a, b) => a + b, 0);
+            }
+            return this.totalDepensesPrevisionAffichage;
+        },
+        kpiPctDepenses() {
+            const prev = this.kpiDepensesPrevu;
+            const real = this.kpiDepensesRealise;
+            return prev === 0 ? 0 : Math.round((real / prev) * 100);
+        },
+
+        kpiVariation() {
+            return this.kpiRevenusRealise - this.kpiDepensesRealise;
+        },
+        kpiVariationPrevue() {
+            return this.kpiRevenusPrevu - this.kpiDepensesPrevu;
+        },
+
+        kpiPostesEnDepassement() {
+            const result = [];
+            for (const p of this.postesBudgetaires) {
+                if (p.type !== 'sortie') continue;
+
+                let prev, real;
+                if (this.vueKPI === 'mois') {
+                    const m = this.moisCourantIndex;
+                    if (m < 0) continue;
+                    prev = this.previsionParPosteMois[p.id]?.[m] || 0;
+                    real = this.realiseParPosteMois[p.id]?.[m] || 0;
+                } else if (this.vueKPI === 'cumul') {
+                    const m = this.moisCourantIndex;
+                    prev = (this.previsionParPosteMois[p.id] || []).slice(0, m + 1).reduce((a, b) => a + b, 0);
+                    real = (this.realiseParPosteMois[p.id] || []).slice(0, m + 1).reduce((a, b) => a + b, 0);
+                } else {
+                    prev = this.totalPrevisionParPoste[p.id] || 0;
+                    real = this.totalRealiseParPoste[p.id] || 0;
+                }
+
+                if (prev > 0 && real > prev * 1.1) result.push(p);
+            }
+            return result;
+        },
+
+        // ---------- Autres computed ----------
         soldeInitialTreso() {
             if (this.modeManuelSoldeInitial) return this.soldeInitialSaisi;
             const baseCDF = this.soldeInitialAutoCalcule || 0;
@@ -603,11 +750,6 @@ export default {
         },
         soldeActuel() {
             if (!this.soldesTreso.length) return null;
-            const maintenant = new Date();
-            const moisActuel = maintenant.getMonth();
-            const anneeActuelle = maintenant.getFullYear();
-            if (this.anneeTreso > anneeActuelle) return null;
-            // Dernier mois passé avec des données réelles
             for (let i = 11; i >= 0; i--) {
                 const s = this.soldesTreso[i];
                 if (s?.flux?.revenusReels !== null && s?.flux?.revenusReels !== undefined) {
@@ -622,7 +764,6 @@ export default {
             return last?.soldeContinu || 0;
         },
         soldeFinalBudgetPur() {
-            // Solde théorique si le budget pur avait été suivi dès le début
             let solde = this.soldeInitialTreso;
             for (let m = 0; m < 12; m++) {
                 const s = this.soldesTreso[m];
@@ -1072,16 +1213,33 @@ export default {
                         datasets: [
                             {
                                 type: 'line',
-                                label: 'Solde (réel + projeté)',
+                                label: 'Solde',
                                 data: soldeData,
-                                borderColor: '#0d6efd',
-                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                borderColor: '#28a745',
+                                backgroundColor: 'transparent',
                                 borderWidth: 3,
                                 tension: 0.2,
                                 pointRadius: 5,
-                                pointBackgroundColor: '#0d6efd',
                                 yAxisID: 'y-solde',
-                                order: 0
+                                order: 0,
+                                segment: {
+                                    borderColor: (ctx) => {
+                                        const idxFin = ctx.p1DataIndex;
+                                        const maintenant = new Date();
+                                        const estFutur = this.anneeTreso > maintenant.getFullYear() ||
+                                            (this.anneeTreso === maintenant.getFullYear() && idxFin > maintenant.getMonth());
+                                        return estFutur ? '#0d6efd' : '#28a745';
+                                    }
+                                },
+                                pointBackgroundColor: (ctx) => {
+                                    const idx = ctx.dataIndex;
+                                    const maintenant = new Date();
+                                    const estFutur = this.anneeTreso > maintenant.getFullYear() ||
+                                        (this.anneeTreso === maintenant.getFullYear() && idx > maintenant.getMonth());
+                                    return estFutur ? '#0d6efd' : '#28a745';
+                                },
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2
                             },
                             {
                                 type: 'bar',
@@ -1128,10 +1286,7 @@ export default {
                         plugins: {
                             tooltip: {
                                 callbacks: {
-                                    label: (c) => {
-                                        const value = c.raw;
-                                        return c.dataset.label + ' : ' + this.formatMontant(value, this.deviseAffichage) + ' ' + this.deviseAffichage;
-                                    }
+                                    label: (c) => c.dataset.label + ' : ' + this.formatMontant(c.raw, this.deviseAffichage) + ' ' + this.deviseAffichage
                                 }
                             },
                             legend: { position: 'top' }
@@ -1163,7 +1318,7 @@ export default {
             try {
                 const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' });
                 const link = document.createElement('a');
-                link.download = `suivi_budget_${this.anneeSuivi}.png`;
+                link.download = `suivi_budget_${this.anneeSuivi}_${this.vueKPI}.png`;
                 link.href = canvas.toDataURL();
                 link.click();
             } catch (error) {
@@ -1279,9 +1434,7 @@ export default {
             const anneeActuelle = aujourdhui.getFullYear();
 
             const nouveauxSoldes = [];
-            let soldeCourant = this.soldeInitialTreso;
 
-            // Étape 1 : Calculer les flux prévus (budget) pour chaque mois
             const fluxPrevus = [];
             for (let m = 0; m < 12; m++) {
                 let entreesPrev = 0, sortiesPrev = 0;
@@ -1295,7 +1448,6 @@ export default {
                 fluxPrevus.push({ entrees: entreesPrev, sorties: sortiesPrev });
             }
 
-            // Étape 2 : Calculer les flux réels (mouvements) pour les mois passés et courants
             const fluxReels = [];
             for (let m = 0; m < 12; m++) {
                 const estPasse = this.anneeTreso < anneeActuelle || (this.anneeTreso === anneeActuelle && m <= moisActuel);
@@ -1333,9 +1485,6 @@ export default {
                 fluxReels.push({ entrees, sorties });
             }
 
-            // Étape 3 : Construire la courbe continue
-            // - Mois passés + courant : flux réels
-            // - Mois futurs : flux prévus
             let soldeContinu = this.soldeInitialTreso;
             for (let m = 0; m < 12; m++) {
                 const estPasse = this.anneeTreso < anneeActuelle || (this.anneeTreso === anneeActuelle && m <= moisActuel);
